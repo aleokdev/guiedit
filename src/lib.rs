@@ -1,5 +1,8 @@
+pub mod inspectable;
+
 use egui::Vec2;
 use egui_sfml::SfEgui;
+use inspectable::Inspectable;
 use sfml::{
     graphics::{
         CircleShape, Color, ConvexShape, CustomShape, Drawable, IntRect, PrimitiveType, Rect,
@@ -332,12 +335,18 @@ impl RenderWindow {
     /// }
     /// ```
     pub fn display(&mut self) {
+        self.display_and_inspect(&mut ());
+    }
+
+    /// Display on screen what has been rendered to the window so far and inspect a value.
+    pub fn display_and_inspect(&mut self, inspectable: &mut impl Inspectable) {
         self.window.clear(Color::BLACK); // HACK
         self.target.display();
         if self.is_editor_active {
             self.egui_ctx.do_frame(|ctx| {
                 egui::SidePanel::new(egui::panel::Side::Left, "inspector").show(ctx, |ui| {
                     ui.vertical_centered(|ui| ui.heading("Inspector"));
+                    inspectable.inspect_ui(ui);
                 });
                 egui::CentralPanel::default()
                     .frame(egui::Frame::none())

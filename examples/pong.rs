@@ -1,9 +1,9 @@
+use guiedit::inspectable::{ClampedValue, Inspectable, ValueWrapper};
 use rand::{thread_rng, Rng};
 use sfml::{
     audio::{Sound, SoundBuffer, SoundSource},
     graphics::{
-        CircleShape, Color, Font, RectangleShape, RenderTarget, RenderWindow, Shape, Text,
-        Transformable,
+        CircleShape, Color, Font, RectangleShape, RenderTarget, Shape, Text, Transformable,
     },
     system::{Clock, Time, Vector2f},
     window::{ContextSettings, Event, Key, Style},
@@ -263,7 +263,10 @@ fn main() {
         }
 
         // Display things on screen
-        window.display()
+        window.display_and_inspect(&mut [ValueWrapper {
+            name: "ball_speed",
+            value: &mut ball_speed,
+        }]);
     }
 }
 
