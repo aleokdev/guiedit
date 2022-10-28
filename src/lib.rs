@@ -1,18 +1,25 @@
+use egui::Vec2;
+use egui_sfml::SfEgui;
 use sfml::{
     graphics::{
-        CircleShape, Color, ConvexShape, CustomShape, Drawable, IntRect, PrimitiveType,
-        RectangleShape, RenderStates, RenderTarget, Sprite, Text, Vertex, VertexBuffer, View,
+        CircleShape, Color, ConvexShape, CustomShape, Drawable, IntRect, PrimitiveType, Rect,
+        RectangleShape, RenderStates, RenderTarget, RenderTexture, Sprite, Text, Texture, Vertex,
+        VertexBuffer, View,
     },
     system::{SfStrConv, Vector2f, Vector2i, Vector2u},
-    window::{ContextSettings, Cursor, Event, Handle, Style, VideoMode},
+    window::{ContextSettings, Cursor, Event, Handle, Key, Style, VideoMode},
 };
 
 use sfml::graphics::RenderWindow as SfRenderWindow;
 
 /// Wrapper over SFML's `RenderWindow`, with editor hooks set up.
-#[derive(Debug)]
+// TODO: Debug impl
 pub struct RenderWindow {
-    render_window: SfRenderWindow,
+    window: SfRenderWindow,
+    target: RenderTexture,
+
+    is_editor_active: bool,
+    egui_ctx: SfEgui,
 }
 
 impl RenderWindow {
@@ -52,17 +59,15 @@ impl RenderWindow {
         style: Style,
         settings: &ContextSettings,
     ) -> RenderWindow {
-        let mut x = Self {
-            render_window: SfRenderWindow::new(mode, title, style, settings),
-        };
+        let window = SfRenderWindow::new(mode, title, style, settings);
+        let target = RenderTexture::new(window.size().x, window.size().y).unwrap();
 
-        // HACK: TEST
-        // Maybe better to render the editor on another window? Still need to draw overlay and control events on original one though so maybe not
-        let view = x.render_window.view();
-        let mut view = sfml::graphics::View::new(view.center(), view.size());
-        view.zoom(1.5);
-        x.set_view(&view);
-        x
+        Self {
+            egui_ctx: SfEgui::new(&window),
+            window,
+            target,
+            is_editor_active: false,
+        }
     }
 
     /// Create a render window from an existing platform-specific window handle
@@ -82,8 +87,14 @@ impl RenderWindow {
     /// * settings - Additional settings for the underlying OpenGL context
     #[must_use]
     pub unsafe fn from_handle(handle: Handle, settings: &ContextSettings) -> RenderWindow {
+        let window = SfRenderWindow::from_handle(handle, settings);
+        let target = RenderTexture::new(window.size().x, window.size().y).unwrap();
+
         Self {
-            render_window: SfRenderWindow::from_handle(handle, settings),
+            egui_ctx: SfEgui::new(&window),
+            window,
+            target,
+            is_editor_active: false,
         }
     }
 
@@ -94,7 +105,7 @@ impl RenderWindow {
     /// doesn't support, or implement a temporary workaround until a bug is fixed.
     #[must_use]
     pub fn system_handle(&self) -> Handle {
-        self.render_window.system_handle()
+        self.window.system_handle()
     }
 
     /// Change a render window's icon
@@ -130,7 +141,7 @@ impl RenderWindow {
     /// }
     /// ```
     pub unsafe fn set_icon(&mut self, width: u32, height: u32, pixels: &[u8]) {
-        self.render_window.set_icon(width, height, pixels)
+        self.window.set_icon(width, height, pixels)
     }
 
     /// Pop the event on top of event queue, if any, and return it
@@ -164,7 +175,9 @@ impl RenderWindow {
     /// }
     /// ```
     pub fn poll_event(&mut self) -> Option<Event> {
-        self.render_window.poll_event()
+        self.window
+            .poll_event()
+            .and_then(|ev| self.process_event(ev))
     }
 
     /// Wait for an event and return it
@@ -198,7 +211,41 @@ impl RenderWindow {
     /// }
     /// ```
     pub fn wait_event(&mut self) -> Option<Event> {
-        self.render_window.wait_event()
+        self.window
+            .wait_event()
+            .and_then(|ev| self.process_event(ev))
+    }
+
+    fn process_event(&mut self, event: Event) -> Option<Event> {
+        self.egui_ctx.add_event(&event);
+
+        if let Event::Resized { width, height } = event {
+            self.window.set_view(&View::from_rect(&Rect::new(
+                0.,
+                0.,
+                width as f32,
+                height as f32,
+            )));
+
+            if self.is_editor_active {
+                // Cancel resize events when the editor is opened (We resize on the egui UI pass)
+                return None;
+            }
+        }
+
+        // Capture the Ctrl+Shift+I editor activation key combo
+        if let Event::KeyPressed {
+            code: Key::I,
+            ctrl: true,
+            shift: true,
+            ..
+        } = event
+        {
+            self.is_editor_active = !self.is_editor_active;
+            None
+        } else {
+            Some(event)
+        }
     }
 
     /// Close a render window and destroy all the attached resources
@@ -232,7 +279,7 @@ impl RenderWindow {
     /// // Once window is closed, we can do other things.
     /// ```
     pub fn close(&mut self) {
-        self.render_window.close()
+        self.window.close()
     }
 
     /// Tell whether or not a window is opened
@@ -258,7 +305,7 @@ impl RenderWindow {
     /// ```
     #[must_use]
     pub fn is_open(&self) -> bool {
-        self.render_window.is_open()
+        self.window.is_open()
     }
 
     /// Display on screen what has been rendered to the window so far
@@ -285,7 +332,43 @@ impl RenderWindow {
     /// }
     /// ```
     pub fn display(&mut self) {
-        self.render_window.display()
+        self.window.clear(Color::BLACK); // HACK
+        self.target.display();
+        if self.is_editor_active {
+            self.egui_ctx.do_frame(|ctx| {
+                egui::SidePanel::new(egui::panel::Side::Left, "inspector").show(ctx, |ui| {
+                    ui.vertical_centered(|ui| ui.heading("Inspector"));
+                });
+                egui::CentralPanel::default()
+                    .frame(egui::Frame::none())
+                    .show(ctx, |ui| {
+                        let target_size = self.target.size();
+                        let aspect_ratio = target_size.x as f32 / target_size.y as f32;
+                        let available = ui.available_size();
+                        let size = if available.y > available.x / aspect_ratio
+                            && available.x < available.y * aspect_ratio
+                        {
+                            // Width-controlled
+                            Vec2::new(available.x, available.x / aspect_ratio)
+                        } else {
+                            // Height-controlled
+                            Vec2::new(available.y * aspect_ratio, available.y)
+                        };
+                        ui.image(egui::TextureId::User(1), size)
+                    });
+            });
+            self.egui_ctx.draw(
+                &mut self.window,
+                Some(&mut SingleTextureProvider(self.target.texture())),
+            );
+        } else {
+            let sprite = Sprite::with_texture_and_rect(
+                self.target.texture(),
+                &IntRect::from_vecs(Vector2i::new(0, 0), self.window.size().as_other()),
+            );
+            self.window.draw(&sprite);
+        }
+        self.window.display()
     }
 
     /// Limit the framerate to a maximum fixed frequency
@@ -297,7 +380,7 @@ impl RenderWindow {
     /// # Arguments
     /// * limit - Framerate limit, in frames per seconds (use 0 to disable limit)
     pub fn set_framerate_limit(&mut self, limit: u32) {
-        self.render_window.set_framerate_limit(limit)
+        self.window.set_framerate_limit(limit)
     }
 
     /// Get the settings of the OpenGL context of a window
@@ -310,7 +393,7 @@ impl RenderWindow {
     /// Return a structure containing the OpenGL context settings
     #[must_use]
     pub fn settings(&self) -> &ContextSettings {
-        self.render_window.settings()
+        self.window.settings()
     }
 
     /// Change the title of a window
@@ -318,7 +401,7 @@ impl RenderWindow {
     /// # Arguments
     /// * title - New title
     pub fn set_title<S: SfStrConv>(&mut self, title: S) {
-        self.render_window.set_title(title)
+        self.window.set_title(title)
     }
 
     /// Show or hide a window.
@@ -326,7 +409,7 @@ impl RenderWindow {
     /// # Arguments
     /// * visible - true to show the window, false to hide it
     pub fn set_visible(&mut self, visible: bool) {
-        self.render_window.set_visible(visible)
+        self.window.set_visible(visible)
     }
 
     /// Show or hide the mouse cursor
@@ -334,7 +417,7 @@ impl RenderWindow {
     /// # Arguments
     /// * visible - true to  false to hide
     pub fn set_mouse_cursor_visible(&mut self, visible: bool) {
-        self.render_window.set_mouse_cursor_visible(visible)
+        self.window.set_mouse_cursor_visible(visible)
     }
 
     /// Grab or release the mouse cursor.
@@ -342,7 +425,7 @@ impl RenderWindow {
     /// If set, grabs the mouse cursor inside this window's client area so it may no longer be
     /// moved outside its bounds. Note that grabbing is only active while the window has focus.
     pub fn set_mouse_cursor_grabbed(&mut self, grabbed: bool) {
-        self.render_window.set_mouse_cursor_grabbed(grabbed)
+        self.window.set_mouse_cursor_grabbed(grabbed)
     }
 
     /// Enable or disable vertical synchronization
@@ -355,7 +438,7 @@ impl RenderWindow {
     /// # Arguments
     /// * enabled - true to enable v-sync, false to deactivate
     pub fn set_vertical_sync_enabled(&mut self, enabled: bool) {
-        self.render_window.set_vertical_sync_enabled(enabled)
+        self.window.set_vertical_sync_enabled(enabled)
     }
 
     /// Enable or disable automatic key-repeat
@@ -369,7 +452,7 @@ impl RenderWindow {
     /// # Arguments
     /// * enabled - true to enable, false to disable
     pub fn set_key_repeat_enabled(&mut self, enabled: bool) {
-        self.render_window.set_key_repeat_enabled(enabled)
+        self.window.set_key_repeat_enabled(enabled)
     }
 
     /// Activate or deactivate a render window as the current target for OpenGL rendering
@@ -385,7 +468,7 @@ impl RenderWindow {
     ///
     /// Return true if operation was successful, false otherwise
     pub fn set_active(&mut self, enabled: bool) -> bool {
-        self.render_window.set_active(enabled)
+        self.window.set_active(enabled)
     }
 
     /// Change the joystick threshold
@@ -396,7 +479,7 @@ impl RenderWindow {
     /// # Arguments
     /// * threshold - New threshold, in the range [0, 100]
     pub fn set_joystick_threshold(&mut self, threshold: f32) {
-        self.render_window.set_joystick_threshold(threshold)
+        self.window.set_joystick_threshold(threshold)
     }
 
     /// Get the position of a window
@@ -404,7 +487,7 @@ impl RenderWindow {
     /// Return the position in pixels
     #[must_use]
     pub fn position(&self) -> Vector2i {
-        self.render_window.position()
+        self.window.position()
     }
 
     /// Change the position of a window on screen
@@ -434,7 +517,7 @@ impl RenderWindow {
     /// assert_eq!(window.position(), Vector2::new(100, 400));
     /// ```
     pub fn set_position(&mut self, position: Vector2i) {
-        self.render_window.set_position(position)
+        self.window.set_position(position)
     }
 
     /// Change the size of the rendering region of a window
@@ -460,13 +543,13 @@ impl RenderWindow {
     /// assert_eq!(window.size(), Vector2::new(100, 400));
     /// ```
     pub fn set_size<S: Into<Vector2u>>(&mut self, size: S) {
-        self.render_window.set_size(size)
+        self.window.set_size(size)
     }
 
     /// Returns the current position of the mouse relative to the window.
     #[must_use]
     pub fn mouse_position(&self) -> Vector2i {
-        self.render_window.mouse_position()
+        self.window.mouse_position()
     }
 
     /// Set the current position of the mouse relatively to a render window
@@ -477,7 +560,7 @@ impl RenderWindow {
     /// # Arguments
     /// * `position` - the positon to set
     pub fn set_mouse_position(&mut self, position: Vector2i) {
-        self.render_window.set_mouse_position(position)
+        self.window.set_mouse_position(position)
     }
 
     /// Set the displayed cursor to a native system cursor.
@@ -509,13 +592,13 @@ impl RenderWindow {
     /// drop(cursor);
     /// ```
     pub unsafe fn set_mouse_cursor(&mut self, cursor: &Cursor) {
-        self.render_window.set_mouse_cursor(cursor)
+        self.window.set_mouse_cursor(cursor)
     }
 
     /// Returns the current position of a touch in window coordinates.
     #[must_use]
     pub fn touch_position(&self, finger: u32) -> Vector2i {
-        self.render_window.touch_position(finger)
+        self.window.touch_position(finger)
     }
 
     /// Check whether the window has the input focus.
@@ -524,7 +607,7 @@ impl RenderWindow {
     /// such as keystrokes or most mouse events.
     #[must_use]
     pub fn has_focus(&self) -> bool {
-        self.render_window.has_focus()
+        self.window.has_focus()
     }
 
     /// Request the current window to be made the active foreground window.
@@ -551,83 +634,87 @@ impl RenderWindow {
     /// assert_eq!(window.has_focus(), true);
     /// ```
     pub fn request_focus(&self) {
-        self.render_window.request_focus()
+        self.window.request_focus()
     }
 }
 
 impl RenderTarget for RenderWindow {
     fn push_gl_states(&mut self) {
-        self.render_window.push_gl_states()
+        self.target.push_gl_states()
     }
     fn pop_gl_states(&mut self) {
-        self.render_window.pop_gl_states()
+        self.target.pop_gl_states()
     }
     fn reset_gl_states(&mut self) {
-        self.render_window.reset_gl_states()
+        self.target.reset_gl_states()
     }
     fn set_view(&mut self, view: &View) {
-        self.render_window.set_view(view)
+        self.target.set_view(view)
     }
     fn view(&self) -> &View {
-        self.render_window.view()
+        self.target.view()
     }
     fn default_view(&self) -> &View {
-        self.render_window.default_view()
+        self.target.default_view()
     }
     fn map_pixel_to_coords(&self, point: Vector2i, view: &View) -> Vector2f {
-        self.render_window.map_pixel_to_coords(point, view)
+        self.target.map_pixel_to_coords(point, view)
     }
     fn map_pixel_to_coords_current_view(&self, point: Vector2i) -> Vector2f {
-        self.render_window.map_pixel_to_coords_current_view(point)
+        self.target.map_pixel_to_coords_current_view(point)
     }
     fn map_coords_to_pixel(&self, point: Vector2f, view: &View) -> Vector2i {
-        self.render_window.map_coords_to_pixel(point, view)
+        self.target.map_coords_to_pixel(point, view)
     }
     fn map_coords_to_pixel_current_view(&self, point: Vector2f) -> Vector2i {
-        self.render_window.map_coords_to_pixel_current_view(point)
+        self.target.map_coords_to_pixel_current_view(point)
     }
     fn viewport(&self, view: &View) -> IntRect {
-        self.render_window.viewport(view)
+        self.target.viewport(view)
     }
     fn size(&self) -> Vector2u {
-        self.render_window.size()
+        self.target.size()
     }
     fn draw(&mut self, object: &dyn Drawable) {
-        self.render_window.draw(object)
+        self.target.draw(object)
     }
     fn draw_with_renderstates(&mut self, object: &dyn Drawable, render_states: &RenderStates) {
-        self.render_window
-            .draw_with_renderstates(object, render_states)
+        self.target.draw_with_renderstates(object, render_states)
     }
     fn draw_text(&self, text: &Text, render_states: &RenderStates) {
-        self.render_window.draw_text(text, render_states)
+        self.target.draw_text(text, render_states)
     }
     fn draw_shape(&self, shape: &CustomShape, render_states: &RenderStates) {
-        self.render_window.draw_shape(shape, render_states)
+        self.target.draw_shape(shape, render_states)
     }
     fn draw_sprite(&self, sprite: &Sprite, render_states: &RenderStates) {
-        self.render_window.draw_sprite(sprite, render_states)
+        self.target.draw_sprite(sprite, render_states)
     }
     fn draw_circle_shape(&self, circle_shape: &CircleShape, render_states: &RenderStates) {
-        self.render_window
-            .draw_circle_shape(circle_shape, render_states)
+        self.target.draw_circle_shape(circle_shape, render_states)
     }
     fn draw_rectangle_shape(&self, rectangle_shape: &RectangleShape, render_states: &RenderStates) {
-        self.render_window
+        self.target
             .draw_rectangle_shape(rectangle_shape, render_states)
     }
     fn draw_convex_shape(&self, convex_shape: &ConvexShape, render_states: &RenderStates) {
-        self.render_window
-            .draw_convex_shape(convex_shape, render_states)
+        self.target.draw_convex_shape(convex_shape, render_states)
     }
     fn draw_vertex_buffer(&self, vertex_buffer: &VertexBuffer, render_states: &RenderStates) {
-        self.render_window
-            .draw_vertex_buffer(vertex_buffer, render_states)
+        self.target.draw_vertex_buffer(vertex_buffer, render_states)
     }
     fn draw_primitives(&self, vertices: &[Vertex], ty: PrimitiveType, rs: &RenderStates) {
-        self.render_window.draw_primitives(vertices, ty, rs)
+        self.target.draw_primitives(vertices, ty, rs)
     }
     fn clear(&mut self, color: Color) {
-        self.render_window.clear(color)
+        self.target.clear(color)
+    }
+}
+
+struct SingleTextureProvider<'tex>(&'tex Texture);
+
+impl egui_sfml::UserTexSource for SingleTextureProvider<'_> {
+    fn get_texture(&mut self, _: u64) -> (f32, f32, &sfml::graphics::Texture) {
+        (self.0.size().x as f32, self.0.size().y as f32, self.0)
     }
 }

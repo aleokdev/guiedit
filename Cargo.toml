@@ -9,6 +9,8 @@ edition = "2021"
 name = "guiedit"
 
 [dependencies]
+egui = "0.19.0"
+egui-sfml = "0.1.1"
 sfml = "0.18.1"
 
 [dev-dependencies]

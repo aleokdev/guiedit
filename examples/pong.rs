@@ -46,7 +46,7 @@ fn main() {
     let mut window = guiedit::RenderWindow::new(
         (game_width, game_height),
         "SFML Pong",
-        Style::CLOSE,
+        Style::CLOSE | Style::RESIZE,
         &context_settings,
     );
     let context_settings = window.settings();
