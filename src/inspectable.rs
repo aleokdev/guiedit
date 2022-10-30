@@ -1,4 +1,4 @@
-use std::ops::RangeInclusive;
+use std::{ops::RangeInclusive, path::PathBuf, time::Duration};
 
 pub trait Inspectable {
     fn inspect_ui(&mut self, ui: &mut egui::Ui);
@@ -25,6 +25,33 @@ implement_inspectable_for_numeric!(isize);
 implement_inspectable_for_numeric!(usize);
 implement_inspectable_for_numeric!(f32);
 implement_inspectable_for_numeric!(f64);
+
+impl Inspectable for bool {
+    fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+        ui.checkbox(self, "");
+    }
+}
+
+impl Inspectable for PathBuf {
+    fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+        // TODO: Allow editing PathBufs
+        ui.add_enabled_ui(false, |ui| {
+            ui.text_edit_singleline(&mut self.to_string_lossy().into_owned())
+        });
+    }
+}
+
+impl Inspectable for Duration {
+    fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+        let mut secs = self.as_secs_f64();
+        if ui
+            .add(egui::DragValue::new(&mut secs).clamp_range(0.0..=core::f64::INFINITY))
+            .changed()
+        {
+            *self = Duration::from_secs_f64(secs);
+        }
+    }
+}
 
 impl Inspectable for String {
     fn inspect_ui(&mut self, ui: &mut egui::Ui) {
