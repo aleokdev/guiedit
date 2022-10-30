@@ -22,6 +22,7 @@ TODO; Check examples for now
 | ------------- | --------- |
 | Inspector with support for `Inspectable` objects | ✅ |
 | `#[derive(Inspectable)]` for enums & structs | ✅ |
+| `inspect!` macro for easily inspecting multiple values | ✅ |
 | `Inspectable` impl for std & core types | 🚧 |
 | Hot code reloading | ⌛ |
 | Graphical gizmo support | ⌛ |

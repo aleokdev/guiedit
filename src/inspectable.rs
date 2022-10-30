@@ -56,6 +56,14 @@ impl<'v, T: Inspectable> Inspectable for ValueWrapper<'v, T> {
     }
 }
 
+pub struct ReadOnlyValue<'v, T: Inspectable>(pub &'v mut T);
+
+impl<'v, T: Inspectable> Inspectable for ReadOnlyValue<'v, T> {
+    fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+        ui.add_enabled_ui(false, |ui| self.0.inspect_ui(ui));
+    }
+}
+
 impl Inspectable for () {
     fn inspect_ui(&mut self, _ui: &mut egui::Ui) {}
 }
@@ -73,3 +81,31 @@ impl<T: Inspectable + ?Sized> Inspectable for &mut T {
         (*self).inspect_ui(ui)
     }
 }
+
+#[macro_export]
+macro_rules! inspect {
+    ($(($($val: tt)+)),* $(,)?) => {
+        &mut [
+            $($crate::__inspect_impl!($($val)+)),*
+        ]
+    }
+}
+
+#[macro_export]
+macro_rules! __inspect_impl {
+    (mut $val: expr) => {
+        &mut $crate::inspectable::ValueWrapper {
+            name: stringify!($val),
+            value: &mut $val,
+        } as &mut dyn $crate::inspectable::Inspectable
+    };
+
+    ($val: expr) => {
+        &mut $crate::inspectable::ValueWrapper {
+            name: stringify!($val),
+            value: &mut $crate::inspectable::ReadOnlyValue(&mut $val),
+        } as &mut dyn $crate::inspectable::Inspectable
+    };
+}
+
+pub use inspect;

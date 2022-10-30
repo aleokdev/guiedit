@@ -1,4 +1,7 @@
-use guiedit::inspectable::{ClampedValue, Inspectable, ValueWrapper};
+use guiedit::{
+    inspect,
+    inspectable::{ClampedValue, Inspectable, ReadOnlyValue, ValueWrapper},
+};
 use rand::{thread_rng, Rng};
 use sfml::{
     audio::{Sound, SoundBuffer, SoundSource},
@@ -263,10 +266,7 @@ fn main() {
         }
 
         // Display things on screen
-        window.display_and_inspect(&mut [ValueWrapper {
-            name: "ball_speed",
-            value: &mut ball_speed,
-        }]);
+        window.display_and_inspect(inspect!((mut ball_speed), (ball.position())));
     }
 }
 
