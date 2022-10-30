@@ -1,7 +1,4 @@
-use guiedit::{
-    inspect,
-    inspectable::{ClampedValue, Inspectable, ReadOnlyValue, ValueWrapper},
-};
+use guiedit::inspect;
 use rand::{thread_rng, Rng};
 use sfml::{
     audio::{Sound, SoundBuffer, SoundSource},
