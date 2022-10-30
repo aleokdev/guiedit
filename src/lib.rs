@@ -15,6 +15,8 @@ use egui::Vec2;
 use egui_sfml::SfEgui;
 use inspectable::Inspectable;
 
+pub use egui;
+
 use ::sfml::graphics::RenderWindow as SfRenderWindow;
 
 /// Wrapper over SFML's `RenderWindow`, with editor hooks set up.

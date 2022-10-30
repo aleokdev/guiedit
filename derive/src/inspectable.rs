@@ -54,7 +54,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
             quote! {
                 #[automatically_derived]
                 impl #generics guiedit::inspectable::Inspectable for #ident #generics #where_clause {
-                    fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+                    fn inspect_ui(&mut self, ui: &mut guiedit::egui::Ui) {
                         ui.group(|ui| {
                             ui.label(stringify!(#ident));
                             #fields_ui
@@ -107,7 +107,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
                         };
                         quote! {
                             #tokens
-                            let mut response = ui.add(egui::SelectableLabel::new(matches!(self, Self:: #variant_ident{..}), stringify!(#variant_ident)));
+                            let mut response = ui.add(guiedit::egui::SelectableLabel::new(matches!(self, Self:: #variant_ident{..}), stringify!(#variant_ident)));
                             if response.clicked() {
                                 selected_text = stringify!(#variant_ident).to_owned();
                                 *self = #variant_default;
@@ -176,12 +176,12 @@ pub fn derive(input: TokenStream) -> TokenStream {
             quote! {
                 #[automatically_derived]
                 impl #generics guiedit::inspectable::Inspectable for #ident #generics #where_clause {
-                    fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+                    fn inspect_ui(&mut self, ui: &mut guiedit::egui::Ui) {
                         ui.group(|ui| {
                             ui.label(stringify!(#ident));
 
                             let mut selected_text = String::new();
-                            egui::ComboBox::from_label("Variant")
+                            guiedit::egui::ComboBox::from_label("Variant")
                                 .selected_text(&selected_text)
                                 .show_ui(ui, |ui| {
                                     #checkbox_variants_ui
