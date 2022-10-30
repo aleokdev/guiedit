@@ -23,7 +23,7 @@ TODO; Check examples for now
 | Inspector with support for `Inspectable` objects | ✅ |
 | `#[derive(Inspectable)]` for enums & structs | ✅ |
 | `inspect!` macro for easily inspecting multiple values | ✅ |
-| `Inspectable` impl for std & core types | 🚧 |
+| `Inspectable` impl for std & core types | ☑️🚧 |
 | Hot code reloading | ⌛ |
 | Graphical gizmo support | ⌛ |
 
@@ -34,6 +34,6 @@ TODO; Check examples for now
 | Capturing events from the editor and relaying them to user-side | ☑️ |
 | Object inspection via UI | ✅ |
 | `#[derive(Inspectable)]` for enums & structs | ✅ |
-| `Inspectable` impl for SFML types | 🚧 |
+| `Inspectable` impl for SFML types | ☑️🚧 |
 | Graphical gizmos for `Drawable`s | ⌛ |
 

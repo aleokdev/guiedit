@@ -8,11 +8,17 @@ fn main() {
     let mut window =
         guiedit::RenderWindow::new((800, 600), "Inspection", Style::CLOSE, &Default::default());
 
-    #[derive(Inspectable, Clone, Copy, Default)]
+    #[derive(Inspectable, Clone, Copy)]
     struct BgColor {
-        r: u8,
-        g: u8,
-        b: u8,
+        color: Color,
+    }
+
+    impl Default for BgColor {
+        fn default() -> Self {
+            Self {
+                color: Color::BLACK,
+            }
+        }
     }
 
     #[derive(Inspectable, Clone, Copy)]
@@ -22,18 +28,14 @@ fn main() {
         Color { color: BgColor },
     }
 
-    impl Into<Color> for BgColor {
-        fn into(self) -> Color {
-            Color::rgb(self.r, self.g, self.b)
-        }
-    }
-
     impl Into<Color> for BgColorKind {
         fn into(self) -> Color {
             match self {
                 BgColorKind::Black => Color::BLACK,
                 BgColorKind::Gray(gray) => Color::rgb(gray, gray, gray),
-                BgColorKind::Color { color } => color.into(),
+                BgColorKind::Color {
+                    color: BgColor { color },
+                } => color,
             }
         }
     }

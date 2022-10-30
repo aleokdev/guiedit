@@ -1,9 +1,7 @@
 pub mod inspectable;
+pub mod sfml;
 
-use egui::Vec2;
-use egui_sfml::SfEgui;
-use inspectable::Inspectable;
-use sfml::{
+use ::sfml::{
     graphics::{
         CircleShape, Color, ConvexShape, CustomShape, Drawable, IntRect, PrimitiveType, Rect,
         RectangleShape, RenderStates, RenderTarget, RenderTexture, Sprite, Text, Texture, Vertex,
@@ -12,8 +10,11 @@ use sfml::{
     system::{SfStrConv, Vector2f, Vector2i, Vector2u},
     window::{ContextSettings, Cursor, Event, Handle, Key, Style, VideoMode},
 };
+use egui::Vec2;
+use egui_sfml::SfEgui;
+use inspectable::Inspectable;
 
-use sfml::graphics::RenderWindow as SfRenderWindow;
+use ::sfml::graphics::RenderWindow as SfRenderWindow;
 
 /// Wrapper over SFML's `RenderWindow`, with editor hooks set up.
 // TODO: Debug impl
@@ -723,7 +724,7 @@ impl RenderTarget for RenderWindow {
 struct SingleTextureProvider<'tex>(&'tex Texture);
 
 impl egui_sfml::UserTexSource for SingleTextureProvider<'_> {
-    fn get_texture(&mut self, _: u64) -> (f32, f32, &sfml::graphics::Texture) {
+    fn get_texture(&mut self, _: u64) -> (f32, f32, &::sfml::graphics::Texture) {
         (self.0.size().x as f32, self.0.size().y as f32, self.0)
     }
 }

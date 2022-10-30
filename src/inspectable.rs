@@ -26,6 +26,12 @@ implement_inspectable_for_numeric!(usize);
 implement_inspectable_for_numeric!(f32);
 implement_inspectable_for_numeric!(f64);
 
+impl Inspectable for String {
+    fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+        ui.text_edit_singleline(self);
+    }
+}
+
 pub struct ClampedValue<'v, T: egui::emath::Numeric> {
     pub range: RangeInclusive<T>,
     pub value: &'v mut T,
@@ -68,11 +74,23 @@ impl Inspectable for () {
     fn inspect_ui(&mut self, _ui: &mut egui::Ui) {}
 }
 
-impl<'v, T: Inspectable, const X: usize> Inspectable for [T; X] {
+impl<'v, T: Inspectable> Inspectable for [T] {
     fn inspect_ui(&mut self, ui: &mut egui::Ui) {
         for element in self.into_iter() {
             element.inspect_ui(ui);
         }
+    }
+}
+
+impl<T: Inspectable, const X: usize> Inspectable for [T; X] {
+    fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+        self[..].inspect_ui(ui)
+    }
+}
+
+impl<T: Inspectable> Inspectable for Vec<T> {
+    fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+        self[..].inspect_ui(ui)
     }
 }
 
