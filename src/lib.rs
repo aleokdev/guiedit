@@ -1,11 +1,12 @@
 pub mod inspectable;
 pub mod sfml;
+mod util;
 
 use ::sfml::{
     graphics::{
-        CircleShape, Color, ConvexShape, CustomShape, Drawable, IntRect, PrimitiveType, Rect,
-        RectangleShape, RenderStates, RenderTarget, RenderTexture, Sprite, Text, Texture, Vertex,
-        VertexBuffer, View,
+        CircleShape, Color, ConvexShape, CustomShape, Drawable, FloatRect, IntRect, PrimitiveType,
+        Rect, RectangleShape, RenderStates, RenderTarget, RenderTexture, Sprite, Text, Texture,
+        Vertex, VertexBuffer, View,
     },
     system::{SfStrConv, Vector2f, Vector2i, Vector2u},
     window::{ContextSettings, Cursor, Event, Handle, Key, Style, VideoMode},
@@ -21,10 +22,19 @@ use ::sfml::graphics::RenderWindow as SfRenderWindow;
 pub struct RenderWindow {
     window: SfRenderWindow,
     target: RenderTexture,
+    target_rect: FloatRect,
 
     is_editor_active: bool,
     egui_ctx: SfEgui,
 }
+
+/// An event variant used for representing no event, yet that the event polling should continue.
+///
+/// This is required because of how the editor event handling works currently. The editor polls
+/// events when the user calls wait_event/poll_event, so the editor needs some way to be able to
+/// consume some of these events without returning `None` (which would mean that there are no more
+/// events to process).
+pub const NOOP_EVENT: Event = Event::MouseWheelMoved;
 
 impl RenderWindow {
     /// Construct a new render window
@@ -68,9 +78,10 @@ impl RenderWindow {
 
         Self {
             egui_ctx: SfEgui::new(&window),
-            window,
             target,
             is_editor_active: false,
+            target_rect: FloatRect::new(0., 0., window.size().x as f32, window.size().y as f32),
+            window,
         }
     }
 
@@ -96,9 +107,10 @@ impl RenderWindow {
 
         Self {
             egui_ctx: SfEgui::new(&window),
-            window,
             target,
             is_editor_active: false,
+            target_rect: FloatRect::new(0., 0., window.size().x as f32, window.size().y as f32),
+            window,
         }
     }
 
@@ -223,32 +235,68 @@ impl RenderWindow {
     fn process_event(&mut self, event: Event) -> Option<Event> {
         self.egui_ctx.add_event(&event);
 
-        if let Event::Resized { width, height } = event {
-            self.window.set_view(&View::from_rect(&Rect::new(
-                0.,
-                0.,
-                width as f32,
-                height as f32,
-            )));
+        match event {
+            event @ Event::Resized { width, height } => {
+                self.window.set_view(&View::from_rect(&Rect::new(
+                    0.,
+                    0.,
+                    width as f32,
+                    height as f32,
+                )));
 
-            if self.is_editor_active {
-                // Cancel resize events when the editor is opened (We resize on the egui UI pass)
-                return None;
+                if self.is_editor_active {
+                    // Cancel resize events when the editor is opened (We resize on the egui UI pass)
+                    // TODO: Do exactly that
+                    return Some(NOOP_EVENT);
+                }
+
+                Some(event)
             }
-        }
-
-        // Capture the Ctrl+Shift+I editor activation key combo
-        if let Event::KeyPressed {
-            code: Key::I,
-            ctrl: true,
-            shift: true,
-            ..
-        } = event
-        {
-            self.is_editor_active = !self.is_editor_active;
-            None
-        } else {
-            Some(event)
+            Event::MouseButtonPressed { button, x, y } => {
+                let pos = Vector2f::new(x as f32, y as f32);
+                if self.target_rect.contains(pos) {
+                    let vec = self.map_window_pos(pos).as_other();
+                    Some(Event::MouseButtonPressed {
+                        button,
+                        x: vec.x,
+                        y: vec.y,
+                    })
+                } else {
+                    Some(NOOP_EVENT)
+                }
+            }
+            Event::MouseButtonReleased { button, x, y } => {
+                let pos = Vector2f::new(x as f32, y as f32);
+                if self.target_rect.contains(pos) {
+                    let vec = self.map_window_pos(pos).as_other();
+                    Some(Event::MouseButtonReleased {
+                        button,
+                        x: vec.x,
+                        y: vec.y,
+                    })
+                } else {
+                    Some(NOOP_EVENT)
+                }
+            }
+            Event::MouseMoved { x, y } => {
+                let pos = Vector2f::new(x as f32, y as f32);
+                if self.target_rect.contains(pos) {
+                    let vec = self.map_window_pos(pos).as_other();
+                    Some(Event::MouseMoved { x: vec.x, y: vec.y })
+                } else {
+                    Some(NOOP_EVENT)
+                }
+            }
+            Event::KeyPressed {
+                code: Key::I,
+                ctrl: true,
+                shift: true,
+                ..
+            } => {
+                self.is_editor_active = !self.is_editor_active;
+                Some(NOOP_EVENT)
+            }
+            other => Some(other),
         }
     }
 
@@ -344,29 +392,39 @@ impl RenderWindow {
         self.window.clear(Color::BLACK); // HACK
         self.target.display();
         if self.is_editor_active {
-            self.egui_ctx.do_frame(|ctx| {
-                egui::SidePanel::new(egui::panel::Side::Left, "inspector").show(ctx, |ui| {
-                    ui.vertical_centered(|ui| ui.heading("Inspector"));
-                    inspectable.inspect_ui(ui);
-                });
-                egui::CentralPanel::default()
-                    .frame(egui::Frame::none())
-                    .show(ctx, |ui| {
-                        let target_size = self.target.size();
-                        let aspect_ratio = target_size.x as f32 / target_size.y as f32;
-                        let available = ui.available_size();
-                        let size = if available.y > available.x / aspect_ratio
-                            && available.x < available.y * aspect_ratio
-                        {
-                            // Width-controlled
-                            Vec2::new(available.x, available.x / aspect_ratio)
-                        } else {
-                            // Height-controlled
-                            Vec2::new(available.y * aspect_ratio, available.y)
-                        };
-                        ui.image(egui::TextureId::User(1), size)
+            let target_rect = &mut self.target_rect;
+            self.egui_ctx
+                .do_frame(|ctx| {
+                    egui::SidePanel::new(egui::panel::Side::Left, "inspector").show(ctx, |ui| {
+                        ui.vertical_centered(|ui| ui.heading("Inspector"));
+                        inspectable.inspect_ui(ui);
                     });
-            });
+                    let rect = egui::CentralPanel::default()
+                        .frame(egui::Frame::none())
+                        .show(ctx, |ui| {
+                            let target_size = self.target.size();
+                            let aspect_ratio = target_size.x as f32 / target_size.y as f32;
+                            let available = ui.available_size();
+                            let size = if available.y > available.x / aspect_ratio
+                                && available.x < available.y * aspect_ratio
+                            {
+                                // Width-controlled
+                                Vec2::new(available.x, available.x / aspect_ratio)
+                            } else {
+                                // Height-controlled
+                                Vec2::new(available.y * aspect_ratio, available.y)
+                            };
+                            ui.image(egui::TextureId::User(1), size)
+                        })
+                        .inner
+                        .rect;
+
+                    target_rect.left = rect.left();
+                    target_rect.top = rect.top();
+                    target_rect.width = rect.width();
+                    target_rect.height = rect.height();
+                })
+                .unwrap();
             self.egui_ctx.draw(
                 &mut self.window,
                 Some(&mut SingleTextureProvider(self.target.texture())),
@@ -559,7 +617,24 @@ impl RenderWindow {
     /// Returns the current position of the mouse relative to the window.
     #[must_use]
     pub fn mouse_position(&self) -> Vector2i {
-        self.window.mouse_position()
+        let window_pos = self.window.mouse_position();
+
+        self.map_window_pos(window_pos.as_other()).as_other()
+    }
+
+    /// Maps a position from its real window position to its viewport position.
+    fn map_window_pos(&self, pos: Vector2f) -> Vector2f {
+        if !self.is_editor_active {
+            pos
+        } else {
+            util::map(
+                pos.as_other(),
+                self.target_rect.position().as_other(),
+                (self.target_rect.position() + self.target_rect.size()).as_other(),
+                Vector2f::new(0., 0.),
+                self.window.size().as_other(),
+            )
+        }
     }
 
     /// Set the current position of the mouse relatively to a render window
@@ -608,7 +683,8 @@ impl RenderWindow {
     /// Returns the current position of a touch in window coordinates.
     #[must_use]
     pub fn touch_position(&self, finger: u32) -> Vector2i {
-        self.window.touch_position(finger)
+        self.map_window_pos(self.window.touch_position(finger).as_other())
+            .as_other()
     }
 
     /// Check whether the window has the input focus.
