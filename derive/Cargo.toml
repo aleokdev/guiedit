@@ -1,0 +1,17 @@
+[package]
+name = "guiedit_derive"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "guiedit_derive"
+proc-macro = true
+
+[dependencies]
+egui = "0.19.0"
+guiedit = { path = ".." }
+proc-macro2 = "1.0.47"
+quote = "1.0.21"
+syn = { version = "1.0.103", features = ["extra-traits"] }

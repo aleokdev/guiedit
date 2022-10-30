@@ -10,9 +10,13 @@ name = "guiedit"
 
 [dependencies]
 egui = "0.19.0"
-egui-sfml = "0.1.1"
+egui-sfml = { git = "https://github.com/aleokdev/egui-sfml", branch = "time-fix" }
 sfml = "0.18.1"
 
 [dev-dependencies]
 rand = "0.8.5"
 sfml = "0.18.1"
+guiedit_derive = { path = "derive" }
+
+[workspace]
+members = ["derive"]
