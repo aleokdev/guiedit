@@ -70,6 +70,29 @@ impl<'v, T: Inspectable> Inspectable for ReadOnlyValue<'v, T> {
     }
 }
 
+impl<T: Inspectable + Default> Inspectable for Option<T> {
+    fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+        match self {
+            Some(x) => {
+                if ui
+                    .horizontal(|ui| {
+                        ui.group(|ui| x.inspect_ui(ui));
+                        ui.small_button("-").clicked()
+                    })
+                    .inner
+                {
+                    *self = None;
+                }
+            }
+            None => {
+                if ui.small_button("+").clicked() {
+                    *self = Some(Default::default())
+                }
+            }
+        }
+    }
+}
+
 impl Inspectable for () {
     fn inspect_ui(&mut self, _ui: &mut egui::Ui) {}
 }
