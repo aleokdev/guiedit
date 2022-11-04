@@ -7,7 +7,7 @@ use sfml::{
     SfBox,
 };
 
-use crate::inspectable::Inspectable;
+use crate::inspectable::{Inspectable, InspectableNode, TreeElement};
 
 impl Inspectable for Color {
     fn inspect_ui(&mut self, ui: &mut egui::Ui) {
@@ -42,6 +42,22 @@ impl<T: egui::emath::Numeric> Inspectable for Vector3<T> {
     }
 }
 
+impl<T: InspectableNode + sfml::SfResource> TreeElement for SfBox<T> {
+    fn search_inspectable(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
+        self.deref_mut().search_inspectable(this_id, search_id, ui)
+    }
+
+    fn tree_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
+        self.deref_mut().tree_ui(id, selected, ui);
+    }
+}
+
+impl<T: Inspectable + sfml::SfResource> Inspectable for SfBox<T> {
+    fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+        self.deref_mut().inspect_ui(ui);
+    }
+}
+
 impl Inspectable for SoundBuffer {
     fn inspect_ui(&mut self, ui: &mut egui::Ui) {
         // TODO: Better impl
@@ -49,12 +65,6 @@ impl Inspectable for SoundBuffer {
             "SoundBuffer; {:.1}s long",
             self.duration().as_seconds()
         ));
-    }
-}
-
-impl<T: Inspectable + sfml::SfResource> Inspectable for SfBox<T> {
-    fn inspect_ui(&mut self, ui: &mut egui::Ui) {
-        self.deref_mut().inspect_ui(ui);
     }
 }
 

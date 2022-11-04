@@ -14,26 +14,66 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
     match data {
         syn::Data::Struct(r#struct) => {
-            let where_clause_init = if let Some(clause) = where_clause {
-                quote! { #clause }
-            } else if r#struct.fields.len() > 0 {
-                quote! { where }
-            } else {
-                quote! {}
+            let wrap_tree_elements_impl = quote! {
+                struct DerefWrap<T>(T);
+                struct Wrap<T>(T);
+
+                impl<T> std::ops::Deref for DerefWrap<T> {
+                    type Target = T;
+
+                    fn deref(&self) -> &Self::Target {
+                        &self.0
+                    }
+                }
+
+                impl<T> std::ops::DerefMut for DerefWrap<T> {
+                    fn deref_mut(&mut self) -> &mut Self::Target {
+                        &mut self.0
+                    }
+                }
+
+                // Implementation for fields represented as nodes in the tree (Those that implement TreeElement)
+                // Just forward the impl to the T itself
+                impl<T: guiedit::inspectable::Inspectable> guiedit::inspectable::Inspectable for DerefWrap<Wrap<&mut T>> {
+                    fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+                        self.0.inspect_ui(ui);
+                    }
+                }
+                impl<T: guiedit::inspectable::TreeElement> guiedit::inspectable::TreeElement for DerefWrap<Wrap<&mut T>> {
+                    fn search_inspectable(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
+                        self.0.0.search_inspectable(this_id, search_id, ui)
+                    }
+
+                    fn tree_ui_outside(&mut self, name: &str, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui)  {
+                        self.0.0.tree_ui_outside(name, id, selected, ui)
+                    }
+
+                    fn tree_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
+                        self.0.0.tree_ui(id, selected, ui)
+                    }
+                }
+
+                // Implementation for fields not represented as nodes in the tree (Those that don't implement TreeElement)
+                impl<T: guiedit::inspectable::Inspectable> guiedit::inspectable::Inspectable for Wrap<T> {
+                    fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+                        self.0.inspect_ui(ui);
+                    }
+                }
+                impl<T: Inspectable> guiedit::inspectable::TreeElement for Wrap<T> {
+                    fn search_inspectable(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
+                        (this_id == search_id).then(|| self.inspect_ui(ui));
+                    }
+
+                    fn tree_ui_outside(&mut self, _: &str, _: u64, _: &mut Option<u64>, _: &mut egui::Ui) { }
+                }
+
+                use std::hash::Hasher;
+                let mut hasher = std::collections::hash_map::DefaultHasher::default();
+                hasher.write_u64(id);
             };
 
-            // Impose restriction that all fields must also implement Inspectable
-            let where_clause = r#struct
-                .fields
-                .iter()
-                .fold(where_clause_init, |clause, field| {
-                    let field_ty = &field.ty;
-
-                    quote! { #clause #field_ty: guiedit::inspectable::Inspectable, }
-                });
-
-            let fields_inspect_ui = r#struct.fields.iter().enumerate().fold(
-                proc_macro2::TokenStream::new(),
+            let fields_tree_ui = r#struct.fields.iter().enumerate().fold(
+                wrap_tree_elements_impl.clone(),
                 |tokens, (idx, field)| {
                     let field_ident = &field.ident;
                     let name = field
@@ -43,28 +83,43 @@ pub fn derive(input: TokenStream) -> TokenStream {
                         .unwrap_or(idx.to_string());
                     quote! {
                         #tokens
-                        ui.horizontal(|ui| {
-                            ui.label(#name);
-                            self.#field_ident.inspect_ui(ui);
-                        });
+                        hasher.write_u64(0);
+                        DerefWrap(Wrap(&mut self.#field_ident)).tree_ui_outside(#name, hasher.clone().finish(), selected, ui);
+                    }
+                },
+            );
+            let fields_search = r#struct.fields.iter().fold(
+                wrap_tree_elements_impl,
+                |tokens, field| {
+                    let field_ident = &field.ident;
+                    quote! {
+                        #tokens
+                        hasher.write_u64(0);
+                        DerefWrap(Wrap(&mut self.#field_ident)).search_inspectable(hasher.clone().finish(), search_id, ui);
                     }
                 },
             );
 
             quote! {
                 #[automatically_derived]
-                impl #generics guiedit::inspectable::Inspectable for #ident #generics #where_clause {
-                    fn inspect_ui(&mut self, ui: &mut guiedit::egui::Ui) {
-                        ui.group(|ui| {
-                            ui.label(stringify!(#ident));
-                            #fields_inspect_ui
-                        });
+                impl #generics guiedit::inspectable::TreeElement for #ident #generics #where_clause {
+                    fn search_inspectable(&mut self, id: u64, search_id: u64, ui: &mut egui::Ui) {
+                        if id == search_id {
+                            self.inspect_ui(ui);
+                        } else {
+                            #fields_search
+                        }
+                    }
+
+                    fn tree_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
+                        #fields_tree_ui
                     }
                 }
             }
             .into()
         }
 
+        // TODO: TreeElement for Enum
         syn::Data::Enum(r#enum) => {
             let checkbox_variants_ui =
                 r#enum
@@ -153,7 +208,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
                                         #ui_tokens
                                         ui.horizontal(|ui| {
                                             ui.label(#name);
-                                            #field_ident.inspect_ui(ui);
+                                            #field_ident.tree_ui(ui);
                                         });
                                     },
                                 )
@@ -175,8 +230,9 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
             quote! {
                 #[automatically_derived]
-                impl #generics guiedit::inspectable::Inspectable for #ident #generics #where_clause {
-                    fn inspect_ui(&mut self, ui: &mut guiedit::egui::Ui) {
+                impl #generics guiedit::inspectable::TreeElement for #ident #generics #where_clause {
+                    fn tree_ui(&mut self, ui: &mut guiedit::egui::Ui) {
+                        // TODO
                         ui.group(|ui| {
                             ui.label(stringify!(#ident));
 

@@ -1,7 +1,44 @@
-use std::{ops::RangeInclusive, path::PathBuf, time::Duration};
+use std::{hash::Hasher, ops::RangeInclusive, path::PathBuf, time::Duration};
+
+// TODO: Remove, replace by TreeElement
+pub trait InspectableNode: TreeElement + Inspectable {}
+
+impl<T: TreeElement + Inspectable> InspectableNode for T {}
+
+// TODO: Figure out a better name
+pub trait TreeElement: Inspectable {
+    /// Searches for an object with the ID given in this element and its children, and calls its inspect_ui function if it is found.
+    // TODO: better name
+    fn search_inspectable(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui);
+
+    fn tree_ui_outside(
+        &mut self,
+        name: &str,
+        id: u64,
+        selected: &mut Option<u64>,
+        ui: &mut egui::Ui,
+    ) {
+        egui::collapsing_header::CollapsingState::load_with_default_open(
+            ui.ctx(),
+            ui.make_persistent_id(id),
+            false,
+        )
+        .show_header(ui, |ui| {
+            if ui
+                .selectable_label(matches!(*selected, Some(i) if i == id), name)
+                .clicked()
+            {
+                *selected = Some(id);
+            }
+        })
+        .body(|ui| self.tree_ui(id, selected, ui));
+    }
+
+    fn tree_ui(&mut self, id: u64, selected: &mut Option<u64>, _ui: &mut egui::Ui) {}
+}
 
 pub trait Inspectable {
-    fn inspect_ui(&mut self, ui: &mut egui::Ui);
+    fn inspect_ui(&mut self, _ui: &mut egui::Ui) {}
 }
 
 macro_rules! implement_inspectable_for_numeric {
@@ -75,12 +112,13 @@ impl<T: egui::emath::Numeric> Inspectable for ClampedValue<'_, T> {
     }
 }
 
-pub struct ValueWrapper<'v, T: Inspectable> {
+pub struct ValueWrapper<'v, T> {
     pub name: &'static str,
     pub value: &'v mut T,
 }
 
 impl<'v, T: Inspectable> Inspectable for ValueWrapper<'v, T> {
+    // TODO: Get rid of this, ValueWrapper is only for TreeElement now
     fn inspect_ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.label(self.name);
@@ -91,12 +129,14 @@ impl<'v, T: Inspectable> Inspectable for ValueWrapper<'v, T> {
 
 pub struct ReadOnlyValue<'v, T: Inspectable>(pub &'v mut T);
 
+// TODO: TreeElement for ReadOnlyValue<T>
 impl<'v, T: Inspectable> Inspectable for ReadOnlyValue<'v, T> {
     fn inspect_ui(&mut self, ui: &mut egui::Ui) {
         ui.add_enabled_ui(false, |ui| self.0.inspect_ui(ui));
     }
 }
 
+// TODO: TreeElement for Option<T>
 impl<T: Inspectable + Default> Inspectable for Option<T> {
     fn inspect_ui(&mut self, ui: &mut egui::Ui) {
         match self {
@@ -120,11 +160,9 @@ impl<T: Inspectable + Default> Inspectable for Option<T> {
     }
 }
 
-impl Inspectable for () {
-    fn inspect_ui(&mut self, _ui: &mut egui::Ui) {}
-}
+impl Inspectable for () {}
 
-impl<'v, T: Inspectable> Inspectable for [T] {
+impl<T: Inspectable> Inspectable for [T] {
     fn inspect_ui(&mut self, ui: &mut egui::Ui) {
         for element in self.into_iter() {
             element.inspect_ui(ui);
@@ -132,15 +170,75 @@ impl<'v, T: Inspectable> Inspectable for [T] {
     }
 }
 
+impl<T: InspectableNode, const X: usize> TreeElement for [T; X] {
+    fn search_inspectable(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
+        if this_id == search_id {
+            self.inspect_ui(ui);
+        } else {
+            for (i, element) in self.into_iter().enumerate() {
+                let mut hasher = std::collections::hash_map::DefaultHasher::default();
+                hasher.write_u64(this_id);
+                hasher.write_u64(i as u64);
+                // Depth-first search
+                element.search_inspectable(this_id, search_id, ui);
+            }
+        }
+    }
+
+    fn tree_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
+        for (i, element) in self.into_iter().enumerate() {
+            let mut hasher = std::collections::hash_map::DefaultHasher::default();
+            hasher.write_u64(id);
+            hasher.write_u64(i as u64);
+            element.tree_ui_outside(&i.to_string(), hasher.finish(), selected, ui);
+        }
+    }
+}
+
 impl<T: Inspectable, const X: usize> Inspectable for [T; X] {
     fn inspect_ui(&mut self, ui: &mut egui::Ui) {
-        self[..].inspect_ui(ui)
+        self[..].as_mut().inspect_ui(ui)
+    }
+}
+
+impl<T: InspectableNode> TreeElement for Vec<T> {
+    fn search_inspectable(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
+        if this_id == search_id {
+            self.inspect_ui(ui);
+        } else {
+            for (i, element) in self.into_iter().enumerate() {
+                let mut hasher = std::collections::hash_map::DefaultHasher::default();
+                hasher.write_u64(this_id);
+                hasher.write_u64(i as u64);
+                // Depth-first search
+                element.search_inspectable(this_id, search_id, ui);
+            }
+        }
+    }
+
+    fn tree_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
+        for (i, element) in self.into_iter().enumerate() {
+            let mut hasher = std::collections::hash_map::DefaultHasher::default();
+            hasher.write_u64(id);
+            hasher.write_u64(i as u64);
+            element.tree_ui_outside(&i.to_string(), hasher.finish(), selected, ui);
+        }
     }
 }
 
 impl<T: Inspectable> Inspectable for Vec<T> {
     fn inspect_ui(&mut self, ui: &mut egui::Ui) {
         self[..].inspect_ui(ui)
+    }
+}
+
+impl<T: TreeElement + ?Sized> TreeElement for &mut T {
+    fn search_inspectable(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
+        (*self).search_inspectable(this_id, search_id, ui)
+    }
+
+    fn tree_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
+        (*self).tree_ui(id, selected, ui)
     }
 }
 
@@ -165,14 +263,14 @@ macro_rules! __inspect_impl {
         &mut $crate::inspectable::ValueWrapper {
             name: stringify!($val),
             value: &mut $val,
-        } as &mut dyn $crate::inspectable::Inspectable
+        } as &mut dyn $crate::inspectable::InspectableNode
     };
 
     ($val: expr) => {
         &mut $crate::inspectable::ValueWrapper {
             name: stringify!($val),
             value: &mut $crate::inspectable::ReadOnlyValue(&mut $val),
-        } as &mut dyn $crate::inspectable::Inspectable
+        } as &mut dyn $crate::inspectable::InspectableNode
     };
 }
 

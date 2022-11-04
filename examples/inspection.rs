@@ -1,3 +1,4 @@
+use guiedit::inspect;
 use guiedit_derive::Inspectable;
 use sfml::{
     graphics::{Color, RenderTarget},
@@ -54,6 +55,6 @@ fn main() {
         }
 
         window.clear(bg_color.into());
-        window.display_and_inspect(&mut bg_color)
+        window.display_and_inspect(inspect!((mut bg_color)))
     }
 }

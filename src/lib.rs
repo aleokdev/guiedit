@@ -13,7 +13,7 @@ use ::sfml::{
 };
 use egui::Vec2;
 use egui_sfml::SfEgui;
-use inspectable::Inspectable;
+use inspectable::{Inspectable, InspectableNode, TreeElement};
 
 pub use egui;
 
@@ -27,6 +27,7 @@ pub struct RenderWindow {
     target_rect: FloatRect,
 
     is_editor_active: bool,
+    active_node: Option<u64>,
     egui_ctx: SfEgui,
 }
 
@@ -84,6 +85,7 @@ impl RenderWindow {
             is_editor_active: false,
             target_rect: FloatRect::new(0., 0., window.size().x as f32, window.size().y as f32),
             window,
+            active_node: None,
         }
     }
 
@@ -113,6 +115,7 @@ impl RenderWindow {
             is_editor_active: false,
             target_rect: FloatRect::new(0., 0., window.size().x as f32, window.size().y as f32),
             window,
+            active_node: None,
         }
     }
 
@@ -386,20 +389,31 @@ impl RenderWindow {
     /// }
     /// ```
     pub fn display(&mut self) {
-        self.display_and_inspect(&mut ());
+        struct Nothing;
+        impl TreeElement for Nothing {
+            fn search_inspectable(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {}
+        }
+        impl Inspectable for Nothing {}
+        self.display_and_inspect(&mut Nothing);
     }
 
     /// Display on screen what has been rendered to the window so far and inspect a value.
-    pub fn display_and_inspect(&mut self, inspectable: &mut impl Inspectable) {
+    pub fn display_and_inspect(&mut self, node: &mut impl InspectableNode) {
         self.window.clear(Color::BLACK); // HACK
         self.target.display();
         if self.is_editor_active {
             let target_rect = &mut self.target_rect;
             self.egui_ctx
                 .do_frame(|ctx| {
-                    egui::SidePanel::new(egui::panel::Side::Left, "inspector").show(ctx, |ui| {
+                    egui::SidePanel::new(egui::panel::Side::Left, "tree").show(ctx, |ui| {
+                        ui.vertical_centered(|ui| ui.heading("Tree"));
+                        // TODO: Use constant instead of 0 for root node
+                        node.tree_ui_outside("root", 0, &mut self.active_node, ui);
+                    });
+                    egui::SidePanel::new(egui::panel::Side::Right, "inspector").show(ctx, |ui| {
                         ui.vertical_centered(|ui| ui.heading("Inspector"));
-                        inspectable.inspect_ui(ui);
+                        let Some(active_node) = self.active_node else {return};
+                        node.search_inspectable(0, active_node, ui);
                     });
                     let rect = egui::CentralPanel::default()
                         .frame(egui::Frame::none())
