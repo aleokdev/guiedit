@@ -1,4 +1,5 @@
-use guiedit::inspect;
+use guiedit::inspectable::ReadOnlyValue;
+use guiedit_derive::{Inspectable, TreeNode};
 use rand::{thread_rng, Rng};
 use sfml::{
     audio::{Sound, SoundBuffer, SoundSource},
@@ -262,8 +263,17 @@ fn main() {
             window.draw(&pause_message);
         }
 
+        #[derive(TreeNode, Inspectable)]
+        struct RootNode<'s> {
+            ball_speed: &'s mut f32,
+            ball_position: ReadOnlyValue<'s, Vector2f>,
+        }
+
         // Display things on screen
-        window.display_and_inspect(inspect!((mut ball_speed), (ball.position())));
+        window.display_and_inspect(&mut RootNode {
+            ball_speed: &mut ball_speed,
+            ball_position: ReadOnlyValue(&mut ball.position()),
+        });
     }
 }
 

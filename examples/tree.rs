@@ -1,7 +1,4 @@
-use guiedit::{
-    inspect,
-    inspectable::{Inspectable, ValueWrapper},
-};
+use guiedit::inspectable::Inspectable;
 use guiedit_derive::{Inspectable, TreeNode};
 use sfml::{
     graphics::{Color, RenderTarget},

@@ -32,14 +32,14 @@ pub fn derive(input: TokenStream) -> TokenStream {
                     }
                 }
 
-                // Implementation for fields represented as nodes in the tree (Those that implement TreeNode)
+                // Implementation for fields represented as nodes in the tree (Those that implement TreeNode / Inspectable)
                 // Just forward the impl to the T itself
-                impl<T: guiedit::inspectable::Inspectable> guiedit::inspectable::Inspectable for DerefWrap<Wrap<&mut T>> {
+                impl<T: Inspectable> Inspectable for DerefWrap<Wrap<&mut T>> {
                     fn inspect_ui(&mut self, ui: &mut egui::Ui) {
-                        self.0.inspect_ui(ui);
+                        self.0.0.inspect_ui(ui);
                     }
                 }
-                impl<T: guiedit::tree::TreeNode> guiedit::tree::TreeNode for DerefWrap<Wrap<&mut T>> {
+                impl<T: TreeNode> TreeNode for DerefWrap<Wrap<&mut T>> {
                     fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
                         self.0.0.inspect_child(this_id, search_id, ui)
                     }
@@ -54,20 +54,20 @@ pub fn derive(input: TokenStream) -> TokenStream {
                 }
 
                 // Implementation for fields not represented as nodes in the tree (Those that don't implement TreeNode)
-                impl<T: guiedit::inspectable::Inspectable> guiedit::inspectable::Inspectable for Wrap<T> {
+                impl<T: Inspectable> Inspectable for Wrap<T> {
                     fn inspect_ui(&mut self, ui: &mut egui::Ui) {
                         self.0.inspect_ui(ui);
                     }
                 }
-                impl<T: Inspectable> guiedit::tree::TreeNode for Wrap<T> {
+                impl<T: Inspectable> TreeNode for Wrap<T> {
                     fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
-                        (this_id == search_id).then(|| self.inspect_ui(ui));
+                        (this_id == search_id).then(|| self.0.inspect_ui(ui));
                     }
 
                     fn tree_ui_outside(&mut self, _: &str, _: u64, _: &mut Option<u64>, _: &mut egui::Ui) { }
                 }
 
-                use std::hash::Hasher;
+                use ::std::hash::Hasher;
                 let mut hasher = std::collections::hash_map::DefaultHasher::default();
                 hasher.write_u64(id);
             };
@@ -102,8 +102,11 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
             quote! {
                 #[automatically_derived]
-                impl #generics guiedit::tree::TreeNode for #ident #generics #where_clause {
+                impl #generics ::guiedit::tree::TreeNode for #ident #generics #where_clause {
                     fn inspect_child(&mut self, id: u64, search_id: u64, ui: &mut egui::Ui) {
+                        use ::guiedit::inspectable::Inspectable;
+                        use ::guiedit::tree::TreeNode;
+
                         if id == search_id {
                             self.inspect_ui(ui);
                         } else {
@@ -112,6 +115,9 @@ pub fn derive(input: TokenStream) -> TokenStream {
                     }
 
                     fn tree_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
+                        use ::guiedit::inspectable::Inspectable;
+                        use ::guiedit::tree::TreeNode;
+
                         #fields_tree_ui
                     }
                 }
@@ -230,7 +236,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
             quote! {
                 #[automatically_derived]
-                impl #generics guiedit::tree::TreeNode for #ident #generics #where_clause {
+                impl #generics TreeNode for #ident #generics #where_clause {
                     fn tree_ui(&mut self, ui: &mut guiedit::egui::Ui) {
                         // TODO
                         ui.group(|ui| {
