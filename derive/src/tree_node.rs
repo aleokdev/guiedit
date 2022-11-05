@@ -32,6 +32,8 @@ pub fn derive(input: TokenStream) -> TokenStream {
                     }
                 }
 
+                use ::guiedit::egui;
+
                 // Implementation for fields represented as nodes in the tree (Those that implement TreeNode / Inspectable)
                 // Just forward the impl to the T itself
                 impl<T: Inspectable> Inspectable for DerefWrap<Wrap<&mut T>> {
@@ -99,7 +101,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
             quote! {
                 #[automatically_derived]
                 impl #generics ::guiedit::tree::TreeNode for #ident #generics #where_clause {
-                    fn inspect_child(&mut self, id: u64, search_id: u64, ui: &mut egui::Ui) {
+                    fn inspect_child(&mut self, id: u64, search_id: u64, ui: &mut ::guiedit::egui::Ui) {
                         use ::guiedit::inspectable::Inspectable;
                         use ::guiedit::tree::TreeNode;
 
@@ -110,7 +112,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
                         }
                     }
 
-                    fn tree_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
+                    fn tree_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut ::guiedit::egui::Ui) {
                         use ::guiedit::inspectable::Inspectable;
                         use ::guiedit::tree::TreeNode;
 

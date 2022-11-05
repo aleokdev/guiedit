@@ -33,13 +33,15 @@ pub fn derive(input: TokenStream) -> TokenStream {
                         }
                     }
 
+                    use ::guiedit::egui;
+
                     // Implementation for fields that implement Inspectable
                     // Just forward the impl to the T itself
                     impl<T: Inspectable> Inspectable for DerefWrap<Wrap<&mut T>> {
                         fn inspect_ui_outside(&mut self, name: &str, ui: &mut egui::Ui) {
                             self.0.0.inspect_ui_outside(name, ui);
                         }
-                        
+
                         fn inspect_ui(&mut self, ui: &mut egui::Ui) {
                             self.0.0.inspect_ui(ui);
                         }
@@ -69,9 +71,9 @@ pub fn derive(input: TokenStream) -> TokenStream {
             quote! {
                 #[automatically_derived]
                 impl #generics ::guiedit::inspectable::Inspectable for #ident #generics #where_clause {
-                    fn inspect_ui_outside(&mut self, _name: &str, _ui: &mut guiedit::egui::Ui) {}
+                    fn inspect_ui_outside(&mut self, _name: &str, _ui: &mut ::guiedit::egui::Ui) {}
 
-                    fn inspect_ui(&mut self, ui: &mut guiedit::egui::Ui) {
+                    fn inspect_ui(&mut self, ui: &mut ::guiedit::egui::Ui) {
                         use ::guiedit::inspectable::Inspectable;
 
                         ui.group(|ui| {
