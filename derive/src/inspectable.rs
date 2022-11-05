@@ -43,10 +43,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
                         .unwrap_or(idx.to_string());
                     quote! {
                         #tokens
-                        ui.horizontal(|ui| {
-                            ui.label(#name);
-                            self.#field_ident.inspect_ui(ui);
-                        });
+                        self.#field_ident.inspect_ui_outside(#name, ui);
                     }
                 },
             );
@@ -54,6 +51,8 @@ pub fn derive(input: TokenStream) -> TokenStream {
             quote! {
                 #[automatically_derived]
                 impl #generics guiedit::inspectable::Inspectable for #ident #generics #where_clause {
+                    fn inspect_ui_outside(&mut self, _name: &str, _ui: &mut guiedit::egui::Ui) {}
+
                     fn inspect_ui(&mut self, ui: &mut guiedit::egui::Ui) {
                         ui.group(|ui| {
                             ui.label(stringify!(#ident));

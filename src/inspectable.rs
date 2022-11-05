@@ -38,6 +38,13 @@ pub trait TreeElement: Inspectable {
 }
 
 pub trait Inspectable {
+    fn inspect_ui_outside(&mut self, name: &str, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.label(name);
+            self.inspect_ui(ui);
+        });
+    }
+
     fn inspect_ui(&mut self, _ui: &mut egui::Ui) {}
 }
 
