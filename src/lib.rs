@@ -1,5 +1,6 @@
 pub mod inspectable;
 pub mod sfml;
+pub mod tree;
 mod util;
 
 use ::sfml::{
@@ -13,7 +14,8 @@ use ::sfml::{
 };
 use egui::Vec2;
 use egui_sfml::SfEgui;
-use inspectable::{Inspectable, TreeNode};
+use inspectable::Inspectable;
+use tree::TreeNode;
 
 pub use egui;
 

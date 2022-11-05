@@ -1,6 +1,6 @@
 use guiedit::{
     inspect,
-    inspectable::{Inspectable, TreeNode, ValueWrapper},
+    inspectable::{Inspectable, ValueWrapper},
 };
 use guiedit_derive::{Inspectable, TreeNode};
 use sfml::{

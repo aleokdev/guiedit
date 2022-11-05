@@ -39,7 +39,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
                         self.0.inspect_ui(ui);
                     }
                 }
-                impl<T: guiedit::inspectable::TreeNode> guiedit::inspectable::TreeNode for DerefWrap<Wrap<&mut T>> {
+                impl<T: guiedit::tree::TreeNode> guiedit::tree::TreeNode for DerefWrap<Wrap<&mut T>> {
                     fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
                         self.0.0.inspect_child(this_id, search_id, ui)
                     }
@@ -59,7 +59,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
                         self.0.inspect_ui(ui);
                     }
                 }
-                impl<T: Inspectable> guiedit::inspectable::TreeNode for Wrap<T> {
+                impl<T: Inspectable> guiedit::tree::TreeNode for Wrap<T> {
                     fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
                         (this_id == search_id).then(|| self.inspect_ui(ui));
                     }
@@ -102,7 +102,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
             quote! {
                 #[automatically_derived]
-                impl #generics guiedit::inspectable::TreeNode for #ident #generics #where_clause {
+                impl #generics guiedit::tree::TreeNode for #ident #generics #where_clause {
                     fn inspect_child(&mut self, id: u64, search_id: u64, ui: &mut egui::Ui) {
                         if id == search_id {
                             self.inspect_ui(ui);
@@ -230,7 +230,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
             quote! {
                 #[automatically_derived]
-                impl #generics guiedit::inspectable::TreeNode for #ident #generics #where_clause {
+                impl #generics guiedit::tree::TreeNode for #ident #generics #where_clause {
                     fn tree_ui(&mut self, ui: &mut guiedit::egui::Ui) {
                         // TODO
                         ui.group(|ui| {
