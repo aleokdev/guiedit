@@ -13,7 +13,7 @@ use ::sfml::{
 };
 use egui::Vec2;
 use egui_sfml::SfEgui;
-use inspectable::{Inspectable, InspectableNode, TreeElement};
+use inspectable::{Inspectable, TreeNode};
 
 pub use egui;
 
@@ -390,15 +390,28 @@ impl RenderWindow {
     /// ```
     pub fn display(&mut self) {
         struct Nothing;
-        impl TreeElement for Nothing {
-            fn search_inspectable(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {}
+        impl TreeNode for Nothing {
+            fn inspect_child(&mut self, _this_id: u64, _search_id: u64, _ui: &mut egui::Ui) {
+                // We don't want to inspect any value
+            }
+
+            fn tree_ui_outside(
+                &mut self,
+                _name: &str,
+                _id: u64,
+                _selected: &mut Option<u64>,
+                ui: &mut egui::Ui,
+            ) {
+                ui.add_enabled_ui(false, |ui| ui.label("Use RenderWindow::display_and_inspect with the root node to use the node tree"));
+            }
         }
         impl Inspectable for Nothing {}
         self.display_and_inspect(&mut Nothing);
     }
 
-    /// Display on screen what has been rendered to the window so far and inspect a value.
-    pub fn display_and_inspect(&mut self, node: &mut impl InspectableNode) {
+    /// Display on screen what has been rendered to the window so far and use the object given as
+    /// the root of the node tree.
+    pub fn display_and_inspect(&mut self, node: &mut impl TreeNode) {
         self.window.clear(Color::BLACK); // HACK
         self.target.display();
         if self.is_editor_active {
@@ -413,7 +426,7 @@ impl RenderWindow {
                     egui::SidePanel::new(egui::panel::Side::Right, "inspector").show(ctx, |ui| {
                         ui.vertical_centered(|ui| ui.heading("Inspector"));
                         let Some(active_node) = self.active_node else {return};
-                        node.search_inspectable(0, active_node, ui);
+                        node.inspect_child(0, active_node, ui);
                     });
                     let rect = egui::CentralPanel::default()
                         .frame(egui::Frame::none())

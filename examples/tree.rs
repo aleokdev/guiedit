@@ -1,8 +1,8 @@
 use guiedit::{
     inspect,
-    inspectable::{Inspectable, InspectableNode, TreeElement, ValueWrapper},
+    inspectable::{Inspectable, TreeNode, ValueWrapper},
 };
-use guiedit_derive::{Inspectable, TreeElement};
+use guiedit_derive::{Inspectable, TreeNode};
 use sfml::{
     graphics::{Color, RenderTarget},
     window::{Event, Key, Style},
@@ -12,12 +12,12 @@ fn main() {
     let mut window =
         guiedit::RenderWindow::new((800, 600), "Inspection", Style::CLOSE, &Default::default());
 
-    #[derive(TreeElement, Inspectable)]
+    #[derive(TreeNode, Inspectable)]
     struct InternalStruct {
         stuff: u32,
     }
 
-    #[derive(TreeElement, Inspectable)]
+    #[derive(TreeNode, Inspectable)]
     struct State {
         foo: InternalStruct,
         integer: i32,

@@ -32,16 +32,16 @@ pub fn derive(input: TokenStream) -> TokenStream {
                     }
                 }
 
-                // Implementation for fields represented as nodes in the tree (Those that implement TreeElement)
+                // Implementation for fields represented as nodes in the tree (Those that implement TreeNode)
                 // Just forward the impl to the T itself
                 impl<T: guiedit::inspectable::Inspectable> guiedit::inspectable::Inspectable for DerefWrap<Wrap<&mut T>> {
                     fn inspect_ui(&mut self, ui: &mut egui::Ui) {
                         self.0.inspect_ui(ui);
                     }
                 }
-                impl<T: guiedit::inspectable::TreeElement> guiedit::inspectable::TreeElement for DerefWrap<Wrap<&mut T>> {
-                    fn search_inspectable(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
-                        self.0.0.search_inspectable(this_id, search_id, ui)
+                impl<T: guiedit::inspectable::TreeNode> guiedit::inspectable::TreeNode for DerefWrap<Wrap<&mut T>> {
+                    fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
+                        self.0.0.inspect_child(this_id, search_id, ui)
                     }
 
                     fn tree_ui_outside(&mut self, name: &str, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui)  {
@@ -53,14 +53,14 @@ pub fn derive(input: TokenStream) -> TokenStream {
                     }
                 }
 
-                // Implementation for fields not represented as nodes in the tree (Those that don't implement TreeElement)
+                // Implementation for fields not represented as nodes in the tree (Those that don't implement TreeNode)
                 impl<T: guiedit::inspectable::Inspectable> guiedit::inspectable::Inspectable for Wrap<T> {
                     fn inspect_ui(&mut self, ui: &mut egui::Ui) {
                         self.0.inspect_ui(ui);
                     }
                 }
-                impl<T: Inspectable> guiedit::inspectable::TreeElement for Wrap<T> {
-                    fn search_inspectable(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
+                impl<T: Inspectable> guiedit::inspectable::TreeNode for Wrap<T> {
+                    fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
                         (this_id == search_id).then(|| self.inspect_ui(ui));
                     }
 
@@ -95,15 +95,15 @@ pub fn derive(input: TokenStream) -> TokenStream {
                     quote! {
                         #tokens
                         hasher.write_u64(0);
-                        DerefWrap(Wrap(&mut self.#field_ident)).search_inspectable(hasher.clone().finish(), search_id, ui);
+                        DerefWrap(Wrap(&mut self.#field_ident)).inspect_child(hasher.clone().finish(), search_id, ui);
                     }
                 },
             );
 
             quote! {
                 #[automatically_derived]
-                impl #generics guiedit::inspectable::TreeElement for #ident #generics #where_clause {
-                    fn search_inspectable(&mut self, id: u64, search_id: u64, ui: &mut egui::Ui) {
+                impl #generics guiedit::inspectable::TreeNode for #ident #generics #where_clause {
+                    fn inspect_child(&mut self, id: u64, search_id: u64, ui: &mut egui::Ui) {
                         if id == search_id {
                             self.inspect_ui(ui);
                         } else {
@@ -119,7 +119,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
             .into()
         }
 
-        // TODO: TreeElement for Enum
+        // TODO: TreeNode for Enum
         syn::Data::Enum(r#enum) => {
             let checkbox_variants_ui =
                 r#enum
@@ -230,7 +230,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
             quote! {
                 #[automatically_derived]
-                impl #generics guiedit::inspectable::TreeElement for #ident #generics #where_clause {
+                impl #generics guiedit::inspectable::TreeNode for #ident #generics #where_clause {
                     fn tree_ui(&mut self, ui: &mut guiedit::egui::Ui) {
                         // TODO
                         ui.group(|ui| {

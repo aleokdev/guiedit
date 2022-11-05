@@ -7,7 +7,7 @@ use sfml::{
     SfBox,
 };
 
-use crate::inspectable::{Inspectable, InspectableNode, TreeElement};
+use crate::inspectable::{Inspectable, TreeNode};
 
 impl Inspectable for Color {
     fn inspect_ui(&mut self, ui: &mut egui::Ui) {
@@ -42,9 +42,9 @@ impl<T: egui::emath::Numeric> Inspectable for Vector3<T> {
     }
 }
 
-impl<T: InspectableNode + sfml::SfResource> TreeElement for SfBox<T> {
-    fn search_inspectable(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
-        self.deref_mut().search_inspectable(this_id, search_id, ui)
+impl<T: TreeNode + sfml::SfResource> TreeNode for SfBox<T> {
+    fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
+        self.deref_mut().inspect_child(this_id, search_id, ui)
     }
 
     fn tree_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {

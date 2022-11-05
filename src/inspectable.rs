@@ -1,15 +1,11 @@
 use std::{hash::Hasher, ops::RangeInclusive, path::PathBuf, time::Duration};
 
-// TODO: Remove, replace by TreeElement
-pub trait InspectableNode: TreeElement + Inspectable {}
-
-impl<T: TreeElement + Inspectable> InspectableNode for T {}
-
-// TODO: Figure out a better name
-pub trait TreeElement: Inspectable {
-    /// Searches for an object with the ID given in this element and its children, and calls its inspect_ui function if it is found.
-    // TODO: better name
-    fn search_inspectable(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui);
+// TODO: Move to different module
+pub trait TreeNode: Inspectable {
+    /// Searches for an object with the ID given in this element and its children, and calls its
+    /// inspect_ui function if it is found.
+    // TODO: Return controlflow for more performant search
+    fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui);
 
     fn tree_ui_outside(
         &mut self,
@@ -34,7 +30,7 @@ pub trait TreeElement: Inspectable {
         .body(|ui| self.tree_ui(id, selected, ui));
     }
 
-    fn tree_ui(&mut self, id: u64, selected: &mut Option<u64>, _ui: &mut egui::Ui) {}
+    fn tree_ui(&mut self, _id: u64, _selected: &mut Option<u64>, _ui: &mut egui::Ui) {}
 }
 
 pub trait Inspectable {
@@ -177,8 +173,8 @@ impl<T: Inspectable> Inspectable for [T] {
     }
 }
 
-impl<T: InspectableNode, const X: usize> TreeElement for [T; X] {
-    fn search_inspectable(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
+impl<T: TreeNode, const X: usize> TreeNode for [T; X] {
+    fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
         if this_id == search_id {
             self.inspect_ui(ui);
         } else {
@@ -187,7 +183,7 @@ impl<T: InspectableNode, const X: usize> TreeElement for [T; X] {
                 hasher.write_u64(this_id);
                 hasher.write_u64(i as u64);
                 // Depth-first search
-                element.search_inspectable(this_id, search_id, ui);
+                element.inspect_child(this_id, search_id, ui);
             }
         }
     }
@@ -208,8 +204,8 @@ impl<T: Inspectable, const X: usize> Inspectable for [T; X] {
     }
 }
 
-impl<T: InspectableNode> TreeElement for Vec<T> {
-    fn search_inspectable(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
+impl<T: TreeNode> TreeNode for Vec<T> {
+    fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
         if this_id == search_id {
             self.inspect_ui(ui);
         } else {
@@ -218,7 +214,7 @@ impl<T: InspectableNode> TreeElement for Vec<T> {
                 hasher.write_u64(this_id);
                 hasher.write_u64(i as u64);
                 // Depth-first search
-                element.search_inspectable(this_id, search_id, ui);
+                element.inspect_child(this_id, search_id, ui);
             }
         }
     }
@@ -239,9 +235,9 @@ impl<T: Inspectable> Inspectable for Vec<T> {
     }
 }
 
-impl<T: TreeElement + ?Sized> TreeElement for &mut T {
-    fn search_inspectable(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
-        (*self).search_inspectable(this_id, search_id, ui)
+impl<T: TreeNode + ?Sized> TreeNode for &mut T {
+    fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
+        (*self).inspect_child(this_id, search_id, ui)
     }
 
     fn tree_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
@@ -270,14 +266,14 @@ macro_rules! __inspect_impl {
         &mut $crate::inspectable::ValueWrapper {
             name: stringify!($val),
             value: &mut $val,
-        } as &mut dyn $crate::inspectable::InspectableNode
+        } as &mut dyn $crate::inspectable::TreeNode
     };
 
     ($val: expr) => {
         &mut $crate::inspectable::ValueWrapper {
             name: stringify!($val),
             value: &mut $crate::inspectable::ReadOnlyValue(&mut $val),
-        } as &mut dyn $crate::inspectable::InspectableNode
+        } as &mut dyn $crate::inspectable::TreeNode
     };
 }
 
