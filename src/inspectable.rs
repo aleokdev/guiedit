@@ -1,6 +1,8 @@
 use std::{ops::RangeInclusive, path::PathBuf, time::Duration};
 
 pub trait Inspectable {
+    /// Inspects this value given its name. This usually is just a wrapper over inspect_ui
+    /// with a label in front of it.
     fn inspect_ui_outside(&mut self, name: &str, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.label(name);
@@ -157,31 +159,3 @@ impl<T: Inspectable + ?Sized> Inspectable for &mut T {
         (*self).inspect_ui(ui)
     }
 }
-
-#[macro_export]
-macro_rules! inspect {
-    ($(($($val: tt)+)),* $(,)?) => {
-        &mut [
-            $($crate::__inspect_impl!($($val)+)),*
-        ]
-    }
-}
-
-#[macro_export]
-macro_rules! __inspect_impl {
-    (mut $val: expr) => {
-        &mut $crate::inspectable::ValueWrapper {
-            name: stringify!($val),
-            value: &mut $val,
-        } as &mut dyn $crate::tree::TreeNode
-    };
-
-    ($val: expr) => {
-        &mut $crate::inspectable::ValueWrapper {
-            name: stringify!($val),
-            value: &mut $crate::inspectable::ReadOnlyValue(&mut $val),
-        } as &mut dyn $crate::tree::TreeNode
-    };
-}
-
-pub use inspect;

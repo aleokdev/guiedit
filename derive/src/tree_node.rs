@@ -54,15 +54,11 @@ pub fn derive(input: TokenStream) -> TokenStream {
                 }
 
                 // Implementation for fields not represented as nodes in the tree (Those that don't implement TreeNode)
-                impl<T: Inspectable> Inspectable for Wrap<T> {
-                    fn inspect_ui(&mut self, ui: &mut egui::Ui) {
-                        self.0.inspect_ui(ui);
-                    }
+                impl<T> Inspectable for Wrap<&mut T> {
+                    fn inspect_ui(&mut self, ui: &mut egui::Ui) {}
                 }
-                impl<T: Inspectable> TreeNode for Wrap<T> {
-                    fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
-                        (this_id == search_id).then(|| self.0.inspect_ui(ui));
-                    }
+                impl<T> TreeNode for Wrap<&mut T> {
+                    fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {}
 
                     fn tree_ui_outside(&mut self, _: &str, _: u64, _: &mut Option<u64>, _: &mut egui::Ui) { }
                 }

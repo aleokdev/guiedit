@@ -1,4 +1,3 @@
-use guiedit::inspectable::Inspectable;
 use guiedit_derive::{Inspectable, TreeNode};
 use sfml::{
     graphics::{Color, RenderTarget},
@@ -9,9 +8,12 @@ fn main() {
     let mut window =
         guiedit::RenderWindow::new((800, 600), "Inspection", Style::CLOSE, &Default::default());
 
+    struct NonInspectable;
+
     #[derive(TreeNode, Inspectable)]
     struct InternalStruct {
         stuff: u32,
+        noninspectable: NonInspectable,
     }
 
     #[derive(TreeNode, Inspectable)]
@@ -23,7 +25,10 @@ fn main() {
     }
 
     let mut state = State {
-        foo: InternalStruct { stuff: 0 },
+        foo: InternalStruct {
+            stuff: 0,
+            noninspectable: NonInspectable,
+        },
         integer: 0,
         string: "Hello World!".to_owned(),
         color: Color::BLACK,

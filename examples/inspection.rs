@@ -1,5 +1,4 @@
-use guiedit::inspect;
-use guiedit_derive::Inspectable;
+use guiedit_derive::{Inspectable, TreeNode};
 use sfml::{
     graphics::{Color, RenderTarget},
     window::{Event, Key, Style},
@@ -9,7 +8,7 @@ fn main() {
     let mut window =
         guiedit::RenderWindow::new((800, 600), "Inspection", Style::CLOSE, &Default::default());
 
-    #[derive(Inspectable, Clone, Copy)]
+    #[derive(TreeNode, Inspectable, Clone, Copy)]
     struct BgColor {
         color: Color,
     }
@@ -22,7 +21,7 @@ fn main() {
         }
     }
 
-    #[derive(Inspectable, Clone, Copy)]
+    #[derive(TreeNode, Inspectable, Clone, Copy)]
     enum BgColorKind {
         Black,
         Gray(u8),
@@ -55,6 +54,6 @@ fn main() {
         }
 
         window.clear(bg_color.into());
-        window.display_and_inspect(inspect!((mut bg_color)))
+        window.display_and_inspect(&mut bg_color);
     }
 }

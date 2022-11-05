@@ -14,26 +14,44 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
     match data {
         syn::Data::Struct(r#struct) => {
-            let where_clause_init = if let Some(clause) = where_clause {
-                quote! { #clause }
-            } else if r#struct.fields.len() > 0 {
-                quote! { where }
-            } else {
-                quote! {}
-            };
-
-            // Impose restriction that all fields must also implement Inspectable
-            let where_clause = r#struct
-                .fields
-                .iter()
-                .fold(where_clause_init, |clause, field| {
-                    let field_ty = &field.ty;
-
-                    quote! { #clause #field_ty: guiedit::inspectable::Inspectable, }
-                });
-
             let fields_inspect_ui = r#struct.fields.iter().enumerate().fold(
-                proc_macro2::TokenStream::new(),
+                quote! {
+                    struct DerefWrap<T>(T);
+                    struct Wrap<T>(T);
+
+                    impl<T> std::ops::Deref for DerefWrap<T> {
+                        type Target = T;
+
+                        fn deref(&self) -> &Self::Target {
+                            &self.0
+                        }
+                    }
+
+                    impl<T> std::ops::DerefMut for DerefWrap<T> {
+                        fn deref_mut(&mut self) -> &mut Self::Target {
+                            &mut self.0
+                        }
+                    }
+
+                    // Implementation for fields that implement Inspectable
+                    // Just forward the impl to the T itself
+                    impl<T: Inspectable> Inspectable for DerefWrap<Wrap<&mut T>> {
+                        fn inspect_ui_outside(&mut self, name: &str, ui: &mut egui::Ui) {
+                            self.0.0.inspect_ui_outside(name, ui);
+                        }
+                        
+                        fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+                            self.0.0.inspect_ui(ui);
+                        }
+                    }
+
+                    // Implementation for fields that do not implement Inspectable
+                    impl<T> Inspectable for Wrap<T> {
+                        fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+                            ui.add_enabled_ui(false, |ui| ui.label("Does not implement Inspectable"));
+                        }
+                    }
+                },
                 |tokens, (idx, field)| {
                     let field_ident = &field.ident;
                     let name = field
@@ -43,17 +61,19 @@ pub fn derive(input: TokenStream) -> TokenStream {
                         .unwrap_or(idx.to_string());
                     quote! {
                         #tokens
-                        self.#field_ident.inspect_ui_outside(#name, ui);
+                        DerefWrap(Wrap(&mut self.#field_ident)).inspect_ui_outside(#name, ui);
                     }
                 },
             );
 
             quote! {
                 #[automatically_derived]
-                impl #generics guiedit::inspectable::Inspectable for #ident #generics #where_clause {
+                impl #generics ::guiedit::inspectable::Inspectable for #ident #generics #where_clause {
                     fn inspect_ui_outside(&mut self, _name: &str, _ui: &mut guiedit::egui::Ui) {}
 
                     fn inspect_ui(&mut self, ui: &mut guiedit::egui::Ui) {
+                        use ::guiedit::inspectable::Inspectable;
+
                         ui.group(|ui| {
                             ui.label(stringify!(#ident));
                             #fields_inspect_ui
