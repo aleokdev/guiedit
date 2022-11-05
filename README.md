@@ -21,8 +21,11 @@ TODO; Check examples for now
 |   Feature     |   Status  |
 | ------------- | --------- |
 | Inspector with support for `Inspectable` objects | ✅ |
-| `#[derive(Inspectable)]` for enums & structs | ✅ |
-| `inspect!` macro for easily inspecting multiple values | ✅ |
+| `#[derive(Inspectable)]` for structs | ✅ |
+| `#[derive(Inspectable)]` for enums | ✅ |
+| Object tree with support for `TreeNode` objects | ✅ |
+| `#[derive(TreeNode)]` for structs | ✅ |
+| `#[derive(TreeNode)]` for enums | ⌛ |
 | `Inspectable` impl for std & core types | ☑️🚧 |
 | Hot code reloading | ⌛ |
 | Graphical gizmo support | ⌛ |
@@ -33,7 +36,6 @@ TODO; Check examples for now
 | Forwarding all user rendering to offscreen texture | ✅ |
 | Capturing events from the editor and relaying them to user-side | ☑️ |
 | Object inspection via UI | ✅ |
-| `#[derive(Inspectable)]` for enums & structs | ✅ |
 | `Inspectable` impl for SFML types | ☑️🚧 |
 | Graphical gizmos for `Drawable`s | ⌛ |
 
