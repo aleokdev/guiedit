@@ -9,7 +9,7 @@ impl<T: TreeNode + sfml::SfResource> TreeNode for SfBox<T> {
         self.deref_mut().inspect_child(this_id, search_id, ui)
     }
 
-    fn tree_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
-        self.deref_mut().tree_ui(id, selected, ui);
+    fn contents_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
+        self.deref_mut().contents_ui(id, selected, ui);
     }
 }

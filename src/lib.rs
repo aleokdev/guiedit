@@ -397,7 +397,7 @@ impl RenderWindow {
                 // We don't want to inspect any value
             }
 
-            fn tree_ui_outside(
+            fn node_ui(
                 &mut self,
                 _name: &str,
                 _id: u64,
@@ -423,7 +423,7 @@ impl RenderWindow {
                     egui::SidePanel::new(egui::panel::Side::Left, "tree").show(ctx, |ui| {
                         ui.vertical_centered(|ui| ui.heading("Tree"));
                         // TODO: Use constant instead of 0 for root node
-                        node.tree_ui_outside("root", 0, &mut self.active_node, ui);
+                        node.node_ui("root", 0, &mut self.active_node, ui);
                     });
                     egui::SidePanel::new(egui::panel::Side::Right, "inspector").show(ctx, |ui| {
                         ui.vertical_centered(|ui| ui.heading("Inspector"));

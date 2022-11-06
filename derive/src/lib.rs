@@ -1,6 +1,7 @@
 use proc_macro::TokenStream;
 
 mod inspectable;
+mod specialization;
 mod tree_node;
 
 #[proc_macro_derive(Inspectable)]

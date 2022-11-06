@@ -2,6 +2,8 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
+use crate::specialization::Specialization;
+
 pub fn derive(input: TokenStream) -> TokenStream {
     let DeriveInput {
         ident,
@@ -14,56 +16,52 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
     match data {
         syn::Data::Struct(r#struct) => {
+            let mut tree_node_specialization = Specialization::new();
+            // Implementation for fields not represented as nodes in the tree (Those that don't implement TreeNode)
+            tree_node_specialization.default_case(
+                syn::parse_quote!(::guiedit::tree::TreeNode),
+                quote! {
+                    fn inspect_child(&mut self, _: u64, _: u64, _: &mut ::guiedit::egui::Ui) {}
+
+                    fn node_ui(&mut self, _: &str, _: u64, _: &mut Option<u64>, _: &mut ::guiedit::egui::Ui) {}
+                },
+            )
+            // Implementation for fields represented as nodes in the tree (Those that implement TreeNode / Inspectable)
+            // Just forward the impl to the T itself
+            .add_case_for_bounds(syn::parse_quote!(::guiedit::tree::TreeNode), quote! {
+                fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut ::guiedit::egui::Ui) {
+                    self.0.0.inspect_child(this_id, search_id, ui)
+                }
+
+                fn node_ui(&mut self, name: &str, id: u64, selected: &mut Option<u64>, ui: &mut ::guiedit::egui::Ui)  {
+                    self.0.0.node_ui(name, id, selected, ui)
+                }
+
+                fn contents_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut ::guiedit::egui::Ui) {
+                    self.0.0.contents_ui(id, selected, ui)
+                }
+            });
+            // We also need to implement Inspectable because TreeNode requires it
+            // TODO: Relax bounds on TreeNode? Maybe have a different trait for SelectableTreeNode: Inspectable
+            tree_node_specialization
+                .default_case(
+                    syn::parse_quote!(::guiedit::inspectable::Inspectable),
+                    quote! {
+                        fn inspect_ui(&mut self, ui: &mut ::guiedit::egui::Ui) {}
+                    },
+                )
+                .add_case_for_bounds(
+                    syn::parse_quote!(::guiedit::inspectable::Inspectable),
+                    quote! {
+                        fn inspect_ui(&mut self, ui: &mut ::guiedit::egui::Ui) {
+                            self.0.0.inspect_ui(ui);
+                        }
+                    },
+                );
+            let tree_node_specialization = tree_node_specialization.build();
+
             let wrap_tree_elements_impl = quote! {
-                struct DerefWrap<T>(T);
-                struct Wrap<T>(T);
-
-                impl<T> std::ops::Deref for DerefWrap<T> {
-                    type Target = T;
-
-                    fn deref(&self) -> &Self::Target {
-                        &self.0
-                    }
-                }
-
-                impl<T> std::ops::DerefMut for DerefWrap<T> {
-                    fn deref_mut(&mut self) -> &mut Self::Target {
-                        &mut self.0
-                    }
-                }
-
-                use ::guiedit::egui;
-
-                // Implementation for fields represented as nodes in the tree (Those that implement TreeNode / Inspectable)
-                // Just forward the impl to the T itself
-                impl<T: Inspectable> Inspectable for DerefWrap<Wrap<&mut T>> {
-                    fn inspect_ui(&mut self, ui: &mut egui::Ui) {
-                        self.0.0.inspect_ui(ui);
-                    }
-                }
-                impl<T: TreeNode> TreeNode for DerefWrap<Wrap<&mut T>> {
-                    fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
-                        self.0.0.inspect_child(this_id, search_id, ui)
-                    }
-
-                    fn tree_ui_outside(&mut self, name: &str, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui)  {
-                        self.0.0.tree_ui_outside(name, id, selected, ui)
-                    }
-
-                    fn tree_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
-                        self.0.0.tree_ui(id, selected, ui)
-                    }
-                }
-
-                // Implementation for fields not represented as nodes in the tree (Those that don't implement TreeNode)
-                impl<T> Inspectable for Wrap<&mut T> {
-                    fn inspect_ui(&mut self, ui: &mut egui::Ui) {}
-                }
-                impl<T> TreeNode for Wrap<&mut T> {
-                    fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {}
-
-                    fn tree_ui_outside(&mut self, _: &str, _: u64, _: &mut Option<u64>, _: &mut egui::Ui) { }
-                }
+                #tree_node_specialization
 
                 use ::std::hash::Hasher;
                 let mut hasher = std::collections::hash_map::DefaultHasher::default();
@@ -82,7 +80,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
                     quote! {
                         #tokens
                         hasher.write_u64(0);
-                        DerefWrap(Wrap(&mut self.#field_ident)).tree_ui_outside(#name, hasher.clone().finish(), selected, ui);
+                        Wrap(Wrap(&mut self.#field_ident)).node_ui(#name, hasher.clone().finish(), selected, ui);
                     }
                 },
             );
@@ -93,7 +91,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
                     quote! {
                         #tokens
                         hasher.write_u64(0);
-                        DerefWrap(Wrap(&mut self.#field_ident)).inspect_child(hasher.clone().finish(), search_id, ui);
+                        Wrap(Wrap(&mut self.#field_ident)).inspect_child(hasher.clone().finish(), search_id, ui);
                     }
                 },
             );
@@ -112,7 +110,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
                         }
                     }
 
-                    fn tree_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut ::guiedit::egui::Ui) {
+                    fn contents_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut ::guiedit::egui::Ui) {
                         use ::guiedit::inspectable::Inspectable;
                         use ::guiedit::tree::TreeNode;
 

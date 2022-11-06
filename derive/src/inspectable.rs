@@ -2,6 +2,8 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
+use crate::specialization::Specialization;
+
 pub fn derive(input: TokenStream) -> TokenStream {
     let DeriveInput {
         ident,
@@ -14,59 +16,39 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
     match data {
         syn::Data::Struct(r#struct) => {
-            let fields_inspect_ui = r#struct.fields.iter().enumerate().fold(
-                quote! {
-                    struct DerefWrap<T>(T);
-                    struct Wrap<T>(T);
+            let mut specialization = Specialization::new();
+            specialization.default_case(syn::parse_quote!(::guiedit::inspectable::Inspectable), quote! {
+                fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+                    ui.add_enabled_ui(false, |ui| ui.label("Does not implement Inspectable"));
+                }
+            }).add_case_for_bounds(syn::parse_quote!(::guiedit::inspectable::Inspectable), quote! {
+                fn inspect_ui_outside(&mut self, name: &str, ui: &mut egui::Ui) {
+                    self.0.0.inspect_ui_outside(name, ui);
+                }
 
-                    impl<T> std::ops::Deref for DerefWrap<T> {
-                        type Target = T;
+                fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+                    self.0.0.inspect_ui(ui);
+                }
+            });
+            let specialization = specialization.build();
 
-                        fn deref(&self) -> &Self::Target {
-                            &self.0
+            let fields_inspect_ui =
+                r#struct
+                    .fields
+                    .iter()
+                    .enumerate()
+                    .fold(specialization, |tokens, (idx, field)| {
+                        let field_ident = &field.ident;
+                        let name = field
+                            .ident
+                            .as_ref()
+                            .map(|ident| ident.to_string())
+                            .unwrap_or(idx.to_string());
+                        quote! {
+                            #tokens
+                            Wrap(Wrap(&mut self.#field_ident)).inspect_ui_outside(#name, ui);
                         }
-                    }
-
-                    impl<T> std::ops::DerefMut for DerefWrap<T> {
-                        fn deref_mut(&mut self) -> &mut Self::Target {
-                            &mut self.0
-                        }
-                    }
-
-                    use ::guiedit::egui;
-
-                    // Implementation for fields that implement Inspectable
-                    // Just forward the impl to the T itself
-                    impl<T: Inspectable> Inspectable for DerefWrap<Wrap<&mut T>> {
-                        fn inspect_ui_outside(&mut self, name: &str, ui: &mut egui::Ui) {
-                            self.0.0.inspect_ui_outside(name, ui);
-                        }
-
-                        fn inspect_ui(&mut self, ui: &mut egui::Ui) {
-                            self.0.0.inspect_ui(ui);
-                        }
-                    }
-
-                    // Implementation for fields that do not implement Inspectable
-                    impl<T> Inspectable for Wrap<T> {
-                        fn inspect_ui(&mut self, ui: &mut egui::Ui) {
-                            ui.add_enabled_ui(false, |ui| ui.label("Does not implement Inspectable"));
-                        }
-                    }
-                },
-                |tokens, (idx, field)| {
-                    let field_ident = &field.ident;
-                    let name = field
-                        .ident
-                        .as_ref()
-                        .map(|ident| ident.to_string())
-                        .unwrap_or(idx.to_string());
-                    quote! {
-                        #tokens
-                        DerefWrap(Wrap(&mut self.#field_ident)).inspect_ui_outside(#name, ui);
-                    }
-                },
-            );
+                    });
 
             quote! {
                 #[automatically_derived]

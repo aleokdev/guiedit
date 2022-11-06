@@ -8,13 +8,7 @@ pub trait TreeNode: Inspectable {
     // TODO: Return controlflow for more performant search
     fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui);
 
-    fn tree_ui_outside(
-        &mut self,
-        name: &str,
-        id: u64,
-        selected: &mut Option<u64>,
-        ui: &mut egui::Ui,
-    ) {
+    fn node_ui(&mut self, name: &str, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
         egui::collapsing_header::CollapsingState::load_with_default_open(
             ui.ctx(),
             ui.make_persistent_id(id),
@@ -28,10 +22,10 @@ pub trait TreeNode: Inspectable {
                 *selected = Some(id);
             }
         })
-        .body(|ui| self.tree_ui(id, selected, ui));
+        .body(|ui| self.contents_ui(id, selected, ui));
     }
 
-    fn tree_ui(&mut self, _id: u64, _selected: &mut Option<u64>, _ui: &mut egui::Ui) {}
+    fn contents_ui(&mut self, _id: u64, _selected: &mut Option<u64>, _ui: &mut egui::Ui) {}
 }
 
 impl<T: TreeNode, const X: usize> TreeNode for [T; X] {
@@ -49,12 +43,12 @@ impl<T: TreeNode, const X: usize> TreeNode for [T; X] {
         }
     }
 
-    fn tree_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
+    fn contents_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
         for (i, element) in self.into_iter().enumerate() {
             let mut hasher = std::collections::hash_map::DefaultHasher::default();
             hasher.write_u64(id);
             hasher.write_u64(i as u64);
-            element.tree_ui_outside(&i.to_string(), hasher.finish(), selected, ui);
+            element.node_ui(&i.to_string(), hasher.finish(), selected, ui);
         }
     }
 }
@@ -74,12 +68,12 @@ impl<T: TreeNode> TreeNode for Vec<T> {
         }
     }
 
-    fn tree_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
+    fn contents_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
         for (i, element) in self.into_iter().enumerate() {
             let mut hasher = std::collections::hash_map::DefaultHasher::default();
             hasher.write_u64(id);
             hasher.write_u64(i as u64);
-            element.tree_ui_outside(&i.to_string(), hasher.finish(), selected, ui);
+            element.node_ui(&i.to_string(), hasher.finish(), selected, ui);
         }
     }
 }
@@ -89,7 +83,7 @@ impl<T: TreeNode + ?Sized> TreeNode for &mut T {
         (*self).inspect_child(this_id, search_id, ui)
     }
 
-    fn tree_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
-        (*self).tree_ui(id, selected, ui)
+    fn contents_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
+        (*self).contents_ui(id, selected, ui)
     }
 }

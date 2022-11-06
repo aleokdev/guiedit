@@ -15,13 +15,7 @@ fn main() {
     impl TreeNode for CustomNode {
         fn inspect_child(&mut self, _this_id: u64, _search_id: u64, ui: &mut egui::Ui) {}
 
-        fn tree_ui_outside(
-            &mut self,
-            name: &str,
-            id: u64,
-            selected: &mut Option<u64>,
-            ui: &mut egui::Ui,
-        ) {
+        fn node_ui(&mut self, name: &str, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
             egui::collapsing_header::CollapsingState::load_with_default_open(
                 ui.ctx(),
                 ui.make_persistent_id(id),
@@ -37,10 +31,10 @@ fn main() {
                 }
                 ui.add_enabled_ui(false, |ui| ui.small("CustomNode"));
             })
-            .body(|ui| self.tree_ui(id, selected, ui));
+            .body(|ui| self.contents_ui(id, selected, ui));
         }
 
-        fn tree_ui(&mut self, _id: u64, _selected: &mut Option<u64>, ui: &mut egui::Ui) {
+        fn contents_ui(&mut self, _id: u64, _selected: &mut Option<u64>, ui: &mut egui::Ui) {
             ui.label("Custom content!");
             use egui::plot::{Line, PlotPoints};
             let n = 128;
