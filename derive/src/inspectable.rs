@@ -18,15 +18,15 @@ pub fn derive(input: TokenStream) -> TokenStream {
         syn::Data::Struct(r#struct) => {
             let mut specialization = Specialization::new();
             specialization.default_case(syn::parse_quote!(::guiedit::inspectable::Inspectable), quote! {
-                fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+                fn inspect_ui(&mut self, ui: &mut ::guiedit::egui::Ui) {
                     ui.add_enabled_ui(false, |ui| ui.label("Does not implement Inspectable"));
                 }
             }).add_case_for_bounds(syn::parse_quote!(::guiedit::inspectable::Inspectable), quote! {
-                fn inspect_ui_outside(&mut self, name: &str, ui: &mut egui::Ui) {
+                fn inspect_ui_outside(&mut self, name: &str, ui: &mut ::guiedit::egui::Ui) {
                     self.0.0.inspect_ui_outside(name, ui);
                 }
 
-                fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+                fn inspect_ui(&mut self, ui: &mut ::guiedit::egui::Ui) {
                     self.0.0.inspect_ui(ui);
                 }
             });
