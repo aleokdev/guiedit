@@ -136,7 +136,6 @@ dependencies = [
 name = "guiedit_derive"
 version = "0.1.0"
 dependencies = [
- "egui",
  "guiedit",
  "proc-macro2",
  "quote",
