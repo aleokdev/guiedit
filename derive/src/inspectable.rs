@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
-use crate::specialization::Specialization;
+use crate::{specialization::Specialization, usages, util};
 
 pub fn derive(input: TokenStream) -> TokenStream {
     let DeriveInput {
@@ -15,58 +15,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
     let where_clause = &generics.where_clause;
 
     match data {
-        syn::Data::Struct(r#struct) => {
-            let mut specialization = Specialization::new();
-            specialization.default_case(syn::parse_quote!(::guiedit::inspectable::Inspectable), quote! {
-                fn inspect_ui(&mut self, ui: &mut ::guiedit::egui::Ui) {
-                    ui.add_enabled_ui(false, |ui| ui.label("Does not implement Inspectable"));
-                }
-            }).add_case_for_bounds(syn::parse_quote!(::guiedit::inspectable::Inspectable), quote! {
-                fn inspect_ui_outside(&mut self, name: &str, ui: &mut ::guiedit::egui::Ui) {
-                    self.0.0.inspect_ui_outside(name, ui);
-                }
-
-                fn inspect_ui(&mut self, ui: &mut ::guiedit::egui::Ui) {
-                    self.0.0.inspect_ui(ui);
-                }
-            });
-            let specialization = specialization.build();
-
-            let fields_inspect_ui =
-                r#struct
-                    .fields
-                    .iter()
-                    .enumerate()
-                    .fold(specialization, |tokens, (idx, field)| {
-                        let field_ident = &field.ident;
-                        let name = field
-                            .ident
-                            .as_ref()
-                            .map(|ident| ident.to_string())
-                            .unwrap_or(idx.to_string());
-                        quote! {
-                            #tokens
-                            Wrap(Wrap(&mut self.#field_ident)).inspect_ui_outside(#name, ui);
-                        }
-                    });
-
-            quote! {
-                #[automatically_derived]
-                impl #generics ::guiedit::inspectable::Inspectable for #ident #generics #where_clause {
-                    fn inspect_ui_outside(&mut self, _name: &str, _ui: &mut ::guiedit::egui::Ui) {}
-
-                    fn inspect_ui(&mut self, ui: &mut ::guiedit::egui::Ui) {
-                        use ::guiedit::inspectable::Inspectable;
-
-                        ui.group(|ui| {
-                            ui.label(stringify!(#ident));
-                            #fields_inspect_ui
-                        });
-                    }
-                }
-            }
-            .into()
-        }
+        syn::Data::Struct(r#struct) => derive_struct(r#struct, &generics, &ident, where_clause),
 
         syn::Data::Enum(r#enum) => {
             let checkbox_variants_ui =
@@ -202,4 +151,71 @@ pub fn derive(input: TokenStream) -> TokenStream {
         }
         syn::Data::Union(_union) => panic!("Unions are currently not supported as inspectables"),
     }
+}
+
+fn derive_struct(
+    r#struct: syn::DataStruct,
+    generics: &syn::Generics,
+    ident: &proc_macro2::Ident,
+    where_clause: &Option<syn::WhereClause>,
+) -> TokenStream {
+    let inspectable = usages::inspectable_trait();
+    let ui = usages::egui_ui();
+
+    let mut specialization = Specialization::new();
+    specialization
+        .default_case(
+            inspectable.clone(),
+            quote! {
+                fn inspect_ui(&mut self, ui: &mut #ui) {
+                    ui.add_enabled_ui(false, |ui| ui.label("Does not implement Inspectable"));
+                }
+            },
+        )
+        .add_case_for_bounds(
+            syn::parse_quote!(#inspectable),
+            quote! {
+                fn inspect_ui_outside(&mut self, name: &str, ui: &mut #ui) {
+                    self.0.0.inspect_ui_outside(name, ui);
+                }
+
+                fn inspect_ui(&mut self, ui: &mut #ui) {
+                    self.0.0.inspect_ui(ui);
+                }
+            },
+        );
+    let specialization = specialization.build();
+    let fields_inspect_ui =
+        r#struct
+            .fields
+            .iter()
+            .enumerate()
+            .fold(specialization, |tokens, (idx, field)| {
+                let name = field
+                    .ident
+                    .as_ref()
+                    .map(|ident| ident.to_string())
+                    .unwrap_or(idx.to_string());
+                let field = util::struct_field(&field, idx as u32);
+                quote! {
+                    #tokens
+                    Wrap(Wrap(&mut #field)).inspect_ui_outside(#name, ui);
+                }
+            });
+    quote! {
+        #[automatically_derived]
+        impl #generics #inspectable for #ident #generics #where_clause {
+            fn inspect_ui_outside(&mut self, _name: &str, _ui: &mut #ui) {}
+
+            fn inspect_ui(&mut self, ui: &mut #ui) {
+                use #inspectable;
+
+                ui.group(|ui| {
+                    ui.label(stringify!(#ident));
+                    #fields_inspect_ui
+                });
+            }
+        }
+    }
+    .into()
 }

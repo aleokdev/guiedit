@@ -3,6 +3,8 @@ use proc_macro::TokenStream;
 mod inspectable;
 mod specialization;
 mod tree_node;
+mod usages;
+mod util;
 
 #[proc_macro_derive(Inspectable)]
 pub fn derive_inspectable(input: TokenStream) -> TokenStream {
