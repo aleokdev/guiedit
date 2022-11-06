@@ -1,8 +1,14 @@
 use std::{ops::RangeInclusive, path::PathBuf, time::Duration};
 
 pub trait Inspectable {
-    /// Inspects this value given its name. This usually is just a wrapper over inspect_ui
+    /// Inspects this value given its name. This usually is just a wrapper over `inspect_ui`
     /// with a label in front of it.
+    ///
+    /// This function exists here to allow overriding the default behavior, which is what happens
+    /// to objects that implement TreeNode and derive Inspectable. Since we don't want nodes to be
+    /// visible in the inspector, we can manually implement this function and remove all default
+    /// behavior, thus effectively hiding the object from the inspector while still allowing to
+    /// inspect its contents via `inspect_ui`.
     fn inspect_ui_outside(&mut self, name: &str, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.label(name);
@@ -84,21 +90,7 @@ impl<T: egui::emath::Numeric> Inspectable for ClampedValue<'_, T> {
     }
 }
 
-pub struct ValueWrapper<'v, T> {
-    pub name: &'static str,
-    pub value: &'v mut T,
-}
-
-impl<'v, T: Inspectable> Inspectable for ValueWrapper<'v, T> {
-    // TODO: Get rid of this, ValueWrapper is only for TreeElement now
-    fn inspect_ui(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.label(self.name);
-            self.value.inspect_ui(ui);
-        });
-    }
-}
-
+// TODO: Figure out how to take in a const ref instead
 pub struct ReadOnlyValue<'v, T: Inspectable>(pub &'v mut T);
 
 // TODO: TreeElement for ReadOnlyValue<T>
