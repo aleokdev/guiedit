@@ -9,23 +9,42 @@ pub trait TreeNode: Inspectable {
     fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui);
 
     fn node_ui(&mut self, name: &str, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
-        egui::collapsing_header::CollapsingState::load_with_default_open(
-            ui.ctx(),
-            ui.make_persistent_id(id),
-            false,
-        )
-        .show_header(ui, |ui| {
-            if ui
-                .selectable_label(matches!(*selected, Some(i) if i == id), name)
-                .clicked()
-            {
-                *selected = Some(id);
-            }
-        })
-        .body(|ui| self.contents_ui(id, selected, ui));
+        default_node_ui(
+            std::any::type_name::<Self>(),
+            name,
+            id,
+            selected,
+            ui,
+            |id, selected, ui| self.contents_ui(id, selected, ui),
+        );
     }
 
     fn contents_ui(&mut self, _id: u64, _selected: &mut Option<u64>, _ui: &mut egui::Ui) {}
+}
+
+pub fn default_node_ui(
+    type_name: &str,
+    name: &str,
+    id: u64,
+    selected: &mut Option<u64>,
+    ui: &mut egui::Ui,
+    body: impl FnOnce(u64, &mut Option<u64>, &mut egui::Ui),
+) {
+    egui::collapsing_header::CollapsingState::load_with_default_open(
+        ui.ctx(),
+        ui.make_persistent_id(id),
+        false,
+    )
+    .show_header(ui, |ui| {
+        if ui
+            .selectable_label(matches!(*selected, Some(i) if i == id), name)
+            .clicked()
+        {
+            *selected = Some(id);
+        }
+        ui.add_enabled_ui(false, |ui| ui.small(type_name));
+    })
+    .body(|ui| body(id, selected, ui));
 }
 
 impl<T: TreeNode, const X: usize> TreeNode for [T; X] {
