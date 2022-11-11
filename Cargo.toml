@@ -22,3 +22,23 @@ guiedit_derive = { path = "derive" }
 
 [workspace]
 members = ["derive"]
+
+[[example]]
+name = "custom"
+required-features = ["sfml"]
+
+[[example]]
+name = "inspection"
+required-features = ["sfml"]
+
+[[example]]
+name = "mouse"
+required-features = ["sfml"]
+
+[[example]]
+name = "pong"
+required-features = ["sfml"]
+
+[[example]]
+name = "tree"
+required-features = ["sfml"]
