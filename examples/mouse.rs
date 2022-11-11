@@ -1,4 +1,4 @@
-use guiedit::RenderWindow;
+use guiedit::sfml::graphics::RenderWindow;
 use sfml::{graphics::*, system::*, window::*};
 
 /// Macro for loading resources in examples.

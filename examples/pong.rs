@@ -1,4 +1,5 @@
 use guiedit::inspectable::ReadOnlyValue;
+use guiedit::sfml::graphics::RenderWindow;
 use guiedit_derive::{Inspectable, TreeNode};
 use rand::{thread_rng, Rng};
 use sfml::{
@@ -44,7 +45,7 @@ fn main() {
         antialiasing_level: aa_level,
         ..Default::default()
     };
-    let mut window = guiedit::RenderWindow::new(
+    let mut window = RenderWindow::new(
         (game_width, game_height),
         "SFML Pong",
         Style::CLOSE | Style::RESIZE,

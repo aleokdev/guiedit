@@ -1,3 +1,4 @@
+use guiedit::sfml::graphics::RenderWindow;
 use guiedit_derive::{Inspectable, TreeNode};
 use sfml::{
     graphics::{Color, RenderTarget},
@@ -5,8 +6,7 @@ use sfml::{
 };
 
 fn main() {
-    let mut window =
-        guiedit::RenderWindow::new((800, 600), "Inspection", Style::CLOSE, &Default::default());
+    let mut window = RenderWindow::new((800, 600), "Inspection", Style::CLOSE, &Default::default());
 
     struct NonInspectable;
 

@@ -1,3 +1,4 @@
+use guiedit::sfml::graphics::RenderWindow;
 use guiedit::{inspectable::Inspectable, tree::TreeNode};
 use guiedit_derive::{Inspectable, TreeNode};
 use sfml::{
@@ -6,8 +7,7 @@ use sfml::{
 };
 
 fn main() {
-    let mut window =
-        guiedit::RenderWindow::new((800, 600), "Inspection", Style::CLOSE, &Default::default());
+    let mut window = RenderWindow::new((800, 600), "Inspection", Style::CLOSE, &Default::default());
 
     #[derive(TreeNode, Inspectable, Clone, Copy)]
     struct BgColor {
