@@ -97,7 +97,6 @@ fn derive_enum(
                     #tokens
                     let mut response = ui.add(::guiedit::egui::SelectableLabel::new(matches!(self, Self:: #variant_ident{..}), stringify!(#variant_ident)));
                     if response.clicked() {
-                        selected_text = stringify!(#variant_ident).to_owned();
                         *self = #variant_default;
                         response.mark_changed();
                     }
@@ -128,6 +127,20 @@ fn derive_enum(
                     #destructure => { #ui },
                 )
             });
+
+    let selected_text_patterns =
+        r#enum
+            .variants
+            .iter()
+            .fold(proc_macro2::TokenStream::new(), |tokens, variant| {
+                let variant_ident = &variant.ident;
+
+                quote! {
+                    #tokens
+                    #ident::#variant_ident {..} => stringify!(#variant_ident),
+                }
+            });
+
     quote! {
         #[automatically_derived]
         impl #generics #inspectable for #ident #generics #where_clause {
@@ -135,9 +148,8 @@ fn derive_enum(
                 ui.group(|ui| {
                     ui.label(stringify!(#ident));
 
-                    let mut selected_text = String::new();
                     ::guiedit::egui::ComboBox::from_label("Variant")
-                        .selected_text(&selected_text)
+                        .selected_text(match &self { #selected_text_patterns })
                         .show_ui(ui, |ui| {
                             #checkbox_variants_ui
                         }
