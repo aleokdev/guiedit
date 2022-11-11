@@ -1,5 +1,4 @@
 use guiedit::{inspectable::Inspectable, tree::TreeNode};
-use guiedit_derive::{Inspectable, TreeNode};
 use sfml::{
     graphics::{Color, RenderTarget},
     window::{Event, Key, Style},
@@ -13,7 +12,7 @@ fn main() {
 
     impl Inspectable for CustomNode {}
     impl TreeNode for CustomNode {
-        fn inspect_child(&mut self, _this_id: u64, _search_id: u64, ui: &mut egui::Ui) {}
+        fn inspect_child(&mut self, _this_id: u64, _search_id: u64, _ui: &mut egui::Ui) {}
 
         fn node_ui(&mut self, name: &str, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
             egui::collapsing_header::CollapsingState::load_with_default_open(
