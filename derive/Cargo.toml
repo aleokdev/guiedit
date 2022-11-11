@@ -13,4 +13,4 @@ proc-macro = true
 guiedit = { path = ".." }
 proc-macro2 = "1.0.47"
 quote = "1.0.21"
-syn = { version = "1.0.103", features = ["extra-traits"] }
+syn = { version = "1.0.103", features = ["full"] }

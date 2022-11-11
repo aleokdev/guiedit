@@ -1,3 +1,4 @@
+use guiedit::{inspectable::Inspectable, tree::TreeNode};
 use guiedit_derive::{Inspectable, TreeNode};
 use sfml::{
     graphics::{Color, RenderTarget},
@@ -21,11 +22,19 @@ fn main() {
         }
     }
 
-    #[derive(TreeNode, Inspectable, Clone, Copy)]
+    #[derive(Inspectable, Clone, Copy)]
     enum BgColorKind {
         Black,
         Gray(u8),
         Color { color: BgColor },
+    }
+
+    impl TreeNode for BgColorKind {
+        fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
+            if this_id == search_id {
+                self.inspect_ui(ui);
+            }
+        }
     }
 
     impl Into<Color> for BgColorKind {

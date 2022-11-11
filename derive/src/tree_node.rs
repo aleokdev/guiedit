@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
+use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
 use crate::{specialization::Specialization, usages, util};
@@ -90,7 +90,7 @@ fn derive_struct(
                 .as_ref()
                 .map(|ident| ident.to_string())
                 .unwrap_or(idx.to_string());
-            let field = util::struct_field(&field, idx as u32);
+            let field = util::struct_field(field.ident.as_ref(), idx as u32);
             quote! {
                 #tokens
                 hasher.write_u64(0);
@@ -104,7 +104,7 @@ fn derive_struct(
             .iter()
             .enumerate()
             .fold(wrap_tree_elements_impl, |tokens, (idx, field)| {
-                let field = util::struct_field(&field, idx as u32);
+                let field = util::struct_field(field.ident.as_ref(), idx as u32);
                 quote! {
                     #tokens
                     hasher.write_u64(0);
