@@ -31,38 +31,14 @@ fn derive_enum(
     let inspectable = usages::inspectable_trait();
     let ui = usages::egui_ui();
 
-    let mut specialization = Specialization::new();
-    specialization
-        .default_case(
-            inspectable.clone(),
-            quote! {
-                fn inspect_ui(&mut self, ui: &mut #ui) {
-                    ui.add_enabled_ui(false, |ui| ui.label("Does not implement Inspectable"));
-                }
-            },
-        )
-        .add_case_for_bounds(
-            syn::parse_quote!(#inspectable),
-            quote! {
-                fn inspect_ui_outside(&mut self, name: &str, ui: &mut #ui) {
-                    self.0.0.inspect_ui_outside(name, ui);
-                }
-
-                fn inspect_ui(&mut self, ui: &mut #ui) {
-                    self.0.0.inspect_ui(ui);
-                }
-            },
-        );
-
     let checkbox_variants_ui =
         r#enum
             .variants
             .iter()
             .fold(proc_macro2::TokenStream::new(), |tokens, variant| {
                 let variant_ident = &variant.ident;
-                let variant_default = match variant.fields.iter().nth(0) {
-                    Some(syn::Field{ident: None, ..}) => {
-                        // Tuple variant
+                let variant_default = match variant.fields {
+                    syn::Fields::Unnamed(_) => {
                         let fields = variant.fields.iter().fold(proc_macro2::TokenStream::new(), |tokens, _| {
                             quote! {
                                 #tokens
@@ -72,10 +48,8 @@ fn derive_enum(
                         quote! {
                             Self:: #variant_ident ( #fields )
                         }
-                    },
-
-                    Some(syn::Field{ident: Some(_), ..}) => {
-                        // Named variant
+                    }
+                    syn::Fields::Named(_) => {
                         let fields = variant.fields.iter().fold(proc_macro2::TokenStream::new(), |tokens, field| {
                             let field_ident = field.ident.as_ref().unwrap();
                             quote! {
@@ -86,12 +60,10 @@ fn derive_enum(
                         quote! {
                             Self:: #variant_ident { #fields }
                         }
-                    },
-
-                    None => {
-                        // Unit variant
+                    }
+                    syn::Fields::Unit => {
                         quote!{ Self:: #variant_ident }
-                    },
+                    }
                 };
                 quote! {
                     #tokens
@@ -102,6 +74,7 @@ fn derive_enum(
                     }
                 }
             });
+
     let variants_ui =
         r#enum
             .variants
