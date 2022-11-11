@@ -19,7 +19,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
         // TODO: TreeNode for Enum
         syn::Data::Enum(_enum) => {
-            todo!()
+            todo!("TreeNode derive not yet implemented for enums")
         }
         syn::Data::Union(_union) => panic!("Unions are currently not supported as inspectables"),
     }
