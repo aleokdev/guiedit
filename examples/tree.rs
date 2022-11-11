@@ -19,6 +19,7 @@ fn main() {
     #[derive(TreeNode, Inspectable)]
     struct State {
         foo: InternalStruct,
+        vec: Vec<InternalStruct>,
         integer: i32,
         string: String,
         color: Color,
@@ -29,6 +30,16 @@ fn main() {
             stuff: 0,
             noninspectable: NonInspectable,
         },
+        vec: vec![
+            InternalStruct {
+                stuff: 1,
+                noninspectable: NonInspectable,
+            },
+            InternalStruct {
+                stuff: 2,
+                noninspectable: NonInspectable,
+            },
+        ],
         integer: 0,
         string: "Hello World!".to_owned(),
         color: Color::BLACK,

@@ -9,7 +9,7 @@ pub trait TreeNode: Inspectable {
     fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui);
 
     fn node_ui(&mut self, name: &str, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
-        default_node_ui(
+        default_parent_node_ui(
             std::any::type_name::<Self>(),
             name,
             id,
@@ -23,6 +23,24 @@ pub trait TreeNode: Inspectable {
 }
 
 pub fn default_node_ui(
+    type_name: &str,
+    name: &str,
+    id: u64,
+    selected: &mut Option<u64>,
+    ui: &mut egui::Ui,
+) {
+    ui.horizontal(|ui| {
+        if ui
+            .selectable_label(matches!(*selected, Some(i) if i == id), name)
+            .clicked()
+        {
+            *selected = Some(id);
+        }
+        ui.add_enabled_ui(false, |ui| ui.small(type_name));
+    });
+}
+
+pub fn default_parent_node_ui(
     type_name: &str,
     name: &str,
     id: u64,
@@ -82,7 +100,7 @@ impl<T: TreeNode> TreeNode for Vec<T> {
                 hasher.write_u64(this_id);
                 hasher.write_u64(i as u64);
                 // Depth-first search
-                element.inspect_child(this_id, search_id, ui);
+                element.inspect_child(hasher.finish(), search_id, ui);
             }
         }
     }

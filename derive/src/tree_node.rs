@@ -111,6 +111,64 @@ fn derive_struct(
                     Wrap(Wrap(&mut #field)).inspect_child(hasher.clone().finish(), search_id, ui);
                 }
             });
+    let node_ui = {
+        let children_implement_tree_node = r#struct.fields.iter().enumerate().fold(
+            quote! { let mut has_children = false; },
+            |tokens, (idx, field)| {
+                let field = util::struct_field(field.ident.as_ref(), idx as u32);
+                quote! {
+                    #tokens
+                    if Wrap(Wrap(&mut #field)).implements_tree_node() { has_children = true; }
+                }
+            },
+        );
+        let mut implements_tree_node_specialization = Specialization::new();
+        implements_tree_node_specialization
+            .default_case(
+                syn::parse_quote!(ImplementsTreeNode),
+                quote! {
+                    fn implements_tree_node(&self) -> bool {
+                        false
+                    }
+                },
+            )
+            .add_case_for_bounds(
+                syn::parse_quote!(#tree_node),
+                quote! {
+                    fn implements_tree_node(&self) -> bool {
+                        true
+                    }
+                },
+            );
+        let implements_tree_node_specialization = implements_tree_node_specialization.build();
+
+        quote! {
+            trait ImplementsTreeNode {
+                fn implements_tree_node(&self) -> bool;
+            }
+            #implements_tree_node_specialization
+            #children_implement_tree_node
+
+            if has_children {
+                ::guiedit::tree::default_parent_node_ui(
+                    std::any::type_name::<Self>(),
+                    name,
+                    id,
+                    selected,
+                    ui,
+                    |id, selected, ui| self.contents_ui(id, selected, ui),
+                );
+            } else {
+                ::guiedit::tree::default_node_ui(
+                    std::any::type_name::<Self>(),
+                    name,
+                    id,
+                    selected,
+                    ui,
+                );
+            }
+        }
+    };
     quote! {
         #[automatically_derived]
         impl #generics #tree_node for #ident #generics #where_clause {
@@ -123,6 +181,10 @@ fn derive_struct(
                 } else {
                     #fields_search
                 }
+            }
+
+            fn node_ui(&mut self, name: &str, id: u64, selected: &mut Option<u64>, ui: &mut ::guiedit::egui::Ui) {
+                #node_ui
             }
 
             fn contents_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut #ui) {
