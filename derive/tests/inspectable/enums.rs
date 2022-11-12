@@ -6,13 +6,25 @@ fn test_enums() {
     enum Enum {
         Unit,
         Tuple(i32, String),
-        Named { value: Vec<i32> },
+        Named {
+            value: Vec<i32>,
+            #[inspectable(ignore)]
+            #[allow(dead_code)]
+            ignored: i32,
+        },
     }
 
     #[derive(Inspectable)]
     enum EnumWithGenerics<MaybeInspectable> {
         Unit,
-        Tuple(i32, String),
-        Named { value: Vec<MaybeInspectable> },
+        Tuple(
+            i32,
+            #[inspectable(ignore)]
+            #[allow(dead_code)]
+            String,
+        ),
+        Named {
+            value: Vec<MaybeInspectable>,
+        },
     }
 }
