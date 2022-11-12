@@ -413,32 +413,53 @@ impl RenderWindow {
             let target_rect = &mut self.target_rect;
             self.egui_ctx
                 .do_frame(|ctx| {
-                    egui::SidePanel::new(egui::panel::Side::Left, "tree").show(ctx, |ui| {
-                        ui.vertical_centered(|ui| ui.heading("Tree"));
-                        // TODO: Use constant instead of 0 for root node
-                        node.node_ui("root", 0, &mut self.active_node, ui);
-                    });
-                    egui::SidePanel::new(egui::panel::Side::Right, "inspector").show(ctx, |ui| {
+                    egui::SidePanel::right("inspector").show(ctx, |ui| {
+                        ui.vertical_centered(|ui| ui.heading("Target"));
+                        ui.horizontal(|ui| {
+                            ui.label("Resolution");
+                            let sfml::system::Vector2u {
+                                x: mut width,
+                                y: mut height,
+                            } = self.target.size();
+                            ui.add(egui::DragValue::new(&mut width));
+                            ui.label("x");
+                            ui.add(egui::DragValue::new(&mut height));
+                        });
+
                         ui.vertical_centered(|ui| ui.heading("Inspector"));
                         let Some(active_node) = self.active_node else {return};
                         node.inspect_child(0, active_node, ui);
                     });
+                    let viewport_aspect_ratio =
+                        self.target.size().x as f32 / self.target.size().y as f32;
+                    let viewport_target_size = super::util::fit_aspect_ratio_in_size(
+                        viewport_aspect_ratio,
+                        ctx.available_rect().size(),
+                    );
+
+                    egui::TopBottomPanel::bottom("tree")
+                        .height_range(
+                            ctx.available_rect().height() - viewport_target_size.y
+                                ..=ctx.available_rect().height() - viewport_target_size.y,
+                        )
+                        .show(ctx, |ui| {
+                            ui.vertical_centered(|ui| ui.heading("Tree"));
+                            // TODO: Use constant instead of 0 for root node
+                            node.node_ui("root", 0, &mut self.active_node, ui);
+                            ui.add_space(ui.available_height());
+                        });
                     let rect = egui::CentralPanel::default()
                         .frame(egui::Frame::none())
                         .show(ctx, |ui| {
                             let target_size = self.target.size();
                             let aspect_ratio = target_size.x as f32 / target_size.y as f32;
-                            let available = ui.available_size();
-                            let size = if available.y > available.x / aspect_ratio
-                                && available.x < available.y * aspect_ratio
-                            {
-                                // Width-controlled
-                                Vec2::new(available.x, available.x / aspect_ratio)
-                            } else {
-                                // Height-controlled
-                                Vec2::new(available.y * aspect_ratio, available.y)
-                            };
-                            ui.image(egui::TextureId::User(1), size)
+                            ui.image(
+                                egui::TextureId::User(1),
+                                super::util::fit_aspect_ratio_in_size(
+                                    aspect_ratio,
+                                    ui.available_size(),
+                                ),
+                            )
                         })
                         .inner
                         .rect;
