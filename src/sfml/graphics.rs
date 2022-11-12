@@ -75,14 +75,7 @@ impl RenderWindow {
         let window = SfRenderWindow::new(mode, title, style, settings);
         let target = RenderTexture::new(window.size().x, window.size().y).unwrap();
 
-        Self {
-            egui_ctx: SfEgui::new(&window),
-            target,
-            is_editor_active: false,
-            target_rect: FloatRect::new(0., 0., window.size().x as f32, window.size().y as f32),
-            window,
-            active_node: None,
-        }
+        Self::from_window_and_target(window, target)
     }
 
     /// Create a render window from an existing platform-specific window handle
@@ -105,6 +98,10 @@ impl RenderWindow {
         let window = SfRenderWindow::from_handle(handle, settings);
         let target = RenderTexture::new(window.size().x, window.size().y).unwrap();
 
+        Self::from_window_and_target(window, target)
+    }
+
+    fn from_window_and_target(window: SfRenderWindow, target: RenderTexture) -> RenderWindow {
         Self {
             egui_ctx: SfEgui::new(&window),
             target,
@@ -237,25 +234,21 @@ impl RenderWindow {
         self.egui_ctx.add_event(&event);
 
         match event {
-            event @ Event::Resized { width, height } => {
-                if self.is_editor_active {
-                    // Cancel resize events when the editor is opened (We resize on the egui UI pass)
-                    // TODO: Do exactly that
-                    return Some(NOOP_EVENT);
-                }
-
+            event @ Event::Resized {
+                width: real_width,
+                height: real_height,
+            } => {
                 // We maintain the old view because that's default behavior;
                 // SFML doesn't change it automatically on window resize
                 let old_view = self.target.view().to_owned();
-                self.target = RenderTexture::new(width, height).unwrap();
+                self.target = RenderTexture::new(real_width, real_height).unwrap();
                 self.target.set_view(&old_view);
-                self.target_rect = Rect {
+                self.window.set_view(&View::from_rect(&Rect {
                     top: 0.,
                     left: 0.,
-                    width: width as f32,
-                    height: height as f32,
-                };
-                self.window.set_view(&View::from_rect(&self.target_rect));
+                    width: real_width as f32,
+                    height: real_height as f32,
+                }));
                 Some(event)
             }
             Event::MouseButtonPressed { button, x, y } => {
@@ -422,14 +415,11 @@ impl RenderWindow {
                     egui::SidePanel::right("inspector").show(ctx, |ui| {
                         ui.vertical_centered(|ui| ui.heading("Target"));
                         ui.horizontal(|ui| {
-                            ui.label("Resolution");
                             let sfml::system::Vector2u {
-                                x: mut width,
-                                y: mut height,
+                                x: width,
+                                y: height,
                             } = self.target.size();
-                            ui.add(egui::DragValue::new(&mut width));
-                            ui.label("x");
-                            ui.add(egui::DragValue::new(&mut height));
+                            ui.label(format!("Resolution: {}x{}", width, height));
                         });
 
                         ui.vertical_centered(|ui| ui.heading("Inspector"));

@@ -58,7 +58,7 @@ fn main() {
                 }
                 Event::KeyPressed { code, .. } => {
                     if code == Key::W {
-                        window.set_mouse_position(Vector2i::new(400, 300));
+                        window.set_mouse_position((window.size() / 2).as_other());
                     } else if code == Key::D {
                         let dm = VideoMode::desktop_mode();
                         let center = Vector2i::new(dm.width as i32 / 2, dm.height as i32 / 2);
