@@ -4,9 +4,12 @@
 ![Sokoban with guiedit screenshot](res/screenshot-sokoban.png)
 
 ## Current State
-The crate is perfectly usable as-is, and already provides an inspector & node tree as well as derive
-utils. However, it's still very rough around the edges and some features such as gizmos or
-saving/loading aren't implemented, and the only supported backend is SFML.
+The crate is in a really experimental state right now. Although it is usable, things may change at
+any point. The tree node and inspector are already implemented, but the only backend supported is
+SFML. If you use SFML, feel free to include this crate, but expect to see many breaking changes down
+the line.
+
+Any issue reports & PRs are greatly appreciated!
 
 ## Goal
 The goal of this crate is to be able to change a few lines of code in an existing or new codebase
