@@ -1,4 +1,4 @@
-use std::hash::Hasher;
+use std::{hash::Hasher, ops::DerefMut};
 
 use crate::inspectable::Inspectable;
 
@@ -122,5 +122,23 @@ impl<T: TreeNode + ?Sized> TreeNode for &mut T {
 
     fn contents_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
         (*self).contents_ui(id, selected, ui)
+    }
+
+    fn node_ui(&mut self, name: &str, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
+        (*self).node_ui(name, id, selected, ui)
+    }
+}
+
+impl<T: TreeNode + ?Sized> TreeNode for Box<T> {
+    fn inspect_child(&mut self, this_id: u64, search_id: u64, ui: &mut egui::Ui) {
+        self.deref_mut().inspect_child(this_id, search_id, ui)
+    }
+
+    fn contents_ui(&mut self, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
+        self.deref_mut().contents_ui(id, selected, ui)
+    }
+
+    fn node_ui(&mut self, name: &str, id: u64, selected: &mut Option<u64>, ui: &mut egui::Ui) {
+        self.deref_mut().node_ui(name, id, selected, ui)
     }
 }

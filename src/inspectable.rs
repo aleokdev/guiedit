@@ -1,4 +1,8 @@
-use std::{ops::RangeInclusive, path::PathBuf, time::Duration};
+use std::{
+    ops::{DerefMut, RangeInclusive},
+    path::PathBuf,
+    time::Duration,
+};
 
 pub trait Inspectable {
     /// Inspects this value given its name. This usually is just a wrapper over `inspect_ui`
@@ -149,5 +153,11 @@ impl<T: Inspectable> Inspectable for Vec<T> {
 impl<T: Inspectable + ?Sized> Inspectable for &mut T {
     fn inspect_ui(&mut self, ui: &mut egui::Ui) {
         (*self).inspect_ui(ui)
+    }
+}
+
+impl<T: Inspectable + ?Sized> Inspectable for Box<T> {
+    fn inspect_ui(&mut self, ui: &mut egui::Ui) {
+        self.deref_mut().inspect_ui(ui)
     }
 }
