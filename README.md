@@ -1,4 +1,7 @@
 # guiedit
+[![Crates.io](https://img.shields.io/crates/v/guiedit.svg)](https://crates.io/crates/guiedit)
+[![dependency status](https://deps.rs/crate/guiedit/latest/status.svg)](https://deps.rs/crate/tiled/)
+
 `guiedit` is a Rust library for easily adding a developer GUI to any graphical application.
 
 ![Sokoban with guiedit screenshot](res/screenshot-sokoban.png)
