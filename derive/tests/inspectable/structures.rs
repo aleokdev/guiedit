@@ -14,6 +14,8 @@ fn test_structures() {
     #[derive(Inspectable)]
     struct NamedStruct<'s> {
         inner_ref: &'s mut TupleStruct,
+        #[inspectable(ignore)]
+        #[allow(dead_code)]
         inner: TupleStruct,
         my_number: i32,
     }

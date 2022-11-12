@@ -6,7 +6,7 @@ mod tree_node;
 mod usages;
 mod util;
 
-#[proc_macro_derive(Inspectable)]
+#[proc_macro_derive(Inspectable, attributes(inspectable))]
 pub fn derive_inspectable(input: TokenStream) -> TokenStream {
     inspectable::derive(input)
 }

@@ -82,14 +82,7 @@ fn derive_enum(
             .fold(proc_macro2::TokenStream::new(), |tokens, variant| {
                 let variant_ident = &variant.ident;
                 let (destructure, fields_idents) = util::destructure_fields(
-                    {
-                        let path: syn::Path = syn::parse_quote! { #ident::#variant_ident };
-                        &syn::PatPath {
-                            path,
-                            attrs: vec![],
-                            qself: None,
-                        }
-                    },
+                    syn::parse_quote! { #ident::#variant_ident },
                     &variant.fields,
                 );
 
@@ -147,17 +140,8 @@ fn derive_struct(
     let inspectable = usages::inspectable_trait();
     let ui = usages::egui_ui();
 
-    let (destructure_pat, fields_idents) = util::destructure_fields(
-        {
-            let path: syn::Path = syn::parse_quote!( #ident );
-            &syn::PatPath {
-                path,
-                attrs: vec![],
-                qself: None,
-            }
-        },
-        &fields,
-    );
+    let (destructure_pat, fields_idents) =
+        util::destructure_fields(syn::parse_quote!( #ident ), &fields);
 
     let fields_inspect_ui = inspect_ui_for_idents(ident, fields_idents.iter());
     quote! {

@@ -19,6 +19,7 @@ fn main() {
     #[derive(TreeNode, Inspectable)]
     struct State {
         foo: InternalStruct,
+        #[inspectable(ignore)]
         vec: Vec<InternalStruct>,
         integer: i32,
         string: String,
