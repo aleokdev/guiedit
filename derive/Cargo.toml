@@ -1,9 +1,14 @@
 [package]
 name = "guiedit_derive"
+description = "Derive Inspectable and NodeTree for any structure or enum"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["Alejandro Perea <aleok.inf@gmail.com>"]
+homepage = "https://github.com/aleokdev/guiedit"
+repository = "https://github.com/aleokdev/guiedit"
+license = "MIT OR Apache-2.0"
+exclude = ["tests/"]
+categories = ["development-tools"]
 
 [lib]
 name = "guiedit_derive"
