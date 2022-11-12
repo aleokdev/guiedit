@@ -9,36 +9,38 @@ edition = "2021"
 name = "guiedit"
 
 [features]
+default = ["derive"]
 sfml = ["dep:sfml", "egui-sfml"]
+derive = ["dep:guiedit_derive"]
 
 [dependencies]
 egui = "0.19.0"
 egui-sfml = { git = "https://github.com/aleokdev/egui-sfml", branch = "time-fix", optional = true }
 sfml = { version = "0.18.1", optional = true }
+guiedit_derive = { path = "derive", optional = true }
 
 [dev-dependencies]
 rand = "0.8.5"
-guiedit_derive = { path = "derive" }
 
 [workspace]
 members = ["derive"]
 
 [[example]]
 name = "custom"
-required-features = ["sfml"]
+required-features = ["sfml", "derive"]
 
 [[example]]
 name = "inspection"
-required-features = ["sfml"]
+required-features = ["sfml", "derive"]
 
 [[example]]
 name = "mouse"
-required-features = ["sfml"]
+required-features = ["sfml", "derive"]
 
 [[example]]
 name = "pong"
-required-features = ["sfml"]
+required-features = ["sfml", "derive"]
 
 [[example]]
 name = "tree"
-required-features = ["sfml"]
+required-features = ["sfml", "derive"]

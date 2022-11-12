@@ -10,7 +10,9 @@ name = "guiedit_derive"
 proc-macro = true
 
 [dependencies]
-guiedit = { path = ".." }
 proc-macro2 = "1.0.47"
 quote = "1.0.21"
 syn = { version = "1.0.103", features = ["full"] }
+
+[dev-dependencies]
+guiedit = { path = "..", default-features = false, features = ["derive"] }

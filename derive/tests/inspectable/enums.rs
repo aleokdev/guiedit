@@ -1,4 +1,4 @@
-use guiedit_derive::Inspectable;
+use guiedit::Inspectable;
 
 #[test]
 fn test_enums() {

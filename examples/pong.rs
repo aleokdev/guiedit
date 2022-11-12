@@ -1,6 +1,6 @@
 use guiedit::inspectable::ReadOnlyValue;
 use guiedit::sfml::graphics::RenderWindow;
-use guiedit_derive::{Inspectable, TreeNode};
+use guiedit::{Inspectable, TreeNode};
 use rand::{thread_rng, Rng};
 use sfml::{
     audio::{Sound, SoundBuffer, SoundSource},

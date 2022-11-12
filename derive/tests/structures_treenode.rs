@@ -1,4 +1,4 @@
-use guiedit_derive::{Inspectable, TreeNode};
+use guiedit::{Inspectable, TreeNode};
 
 #[test]
 fn test_structures() {
