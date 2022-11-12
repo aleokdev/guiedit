@@ -18,6 +18,7 @@ use ::sfml::graphics::RenderWindow as SfRenderWindow;
 // TODO: Debug impl
 pub struct RenderWindow {
     window: SfRenderWindow,
+    /// The texture that all rendering is done to before putting it on the actual window.
     target: RenderTexture,
     target_rect: FloatRect,
 
@@ -237,19 +238,24 @@ impl RenderWindow {
 
         match event {
             event @ Event::Resized { width, height } => {
-                self.window.set_view(&View::from_rect(&Rect::new(
-                    0.,
-                    0.,
-                    width as f32,
-                    height as f32,
-                )));
-
                 if self.is_editor_active {
                     // Cancel resize events when the editor is opened (We resize on the egui UI pass)
                     // TODO: Do exactly that
                     return Some(NOOP_EVENT);
                 }
 
+                // We maintain the old view because that's default behavior;
+                // SFML doesn't change it automatically on window resize
+                let old_view = self.target.view().to_owned();
+                self.target = RenderTexture::new(width, height).unwrap();
+                self.target.set_view(&old_view);
+                self.target_rect = Rect {
+                    top: 0.,
+                    left: 0.,
+                    width: width as f32,
+                    height: height as f32,
+                };
+                self.window.set_view(&View::from_rect(&self.target_rect));
                 Some(event)
             }
             Event::MouseButtonPressed { button, x, y } => {
@@ -780,7 +786,7 @@ impl RenderTarget for RenderWindow {
         self.target.reset_gl_states()
     }
     fn set_view(&mut self, view: &View) {
-        self.target.set_view(view)
+        self.target.set_view(view);
     }
     fn view(&self) -> &View {
         self.target.view()

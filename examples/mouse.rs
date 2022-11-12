@@ -14,7 +14,7 @@ fn main() {
     let mut window = RenderWindow::new(
         (800, 600),
         "Mouse events",
-        Style::CLOSE,
+        Style::CLOSE | Style::RESIZE,
         &Default::default(),
     );
     window.set_mouse_cursor_visible(false);
@@ -38,6 +38,15 @@ fn main() {
         while let Some(ev) = window.poll_event() {
             match ev {
                 Event::Closed => return,
+                Event::Resized { width, height } => {
+                    let view = sfml::graphics::View::from_rect(&Rect {
+                        left: 0.,
+                        top: 0.,
+                        width: width as f32,
+                        height: height as f32,
+                    });
+                    window.set_view(&view);
+                }
                 Event::MouseWheelScrolled { wheel, delta, x, y } => {
                     push_text!(x, y, "Scroll: {:?}, {}, {}, {}", wheel, delta, x, y);
                 }
